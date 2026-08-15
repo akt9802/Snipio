@@ -1,26 +1,140 @@
+/* ─── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @import "tailwindcss";
 
+/* ─── Design Tokens ─────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Backgrounds — warm off-white, not cold black */
+  --bg-base:      #faf9f7;
+  --bg-surface:   #f4f2ee;
+  --bg-elevated:  #ffffff;
+  --bg-overlay:   #ede9e3;
+  --bg-border:    #e2ddd6;
+  --bg-border-subtle: #ede9e3;
+
+  /* Accent — warm amber/terracotta, not AI purple */
+  --accent:       #e8642a;
+  --accent-hover: #d4551d;
+  --accent-mid:   #f0864e;
+  --accent-soft:  rgba(232, 100, 42, 0.10);
+  --accent-softer: rgba(232, 100, 42, 0.06);
+
+  /* Text — warm ink tones */
+  --text-primary:   #1a1714;
+  --text-secondary: #5a5249;
+  --text-muted:     #9b9189;
+  --text-placeholder: #c4bdb5;
+
+  /* Status */
+  --success: #27a05a;
+  --success-soft: rgba(39, 160, 90, 0.12);
+  --error:   #dc3545;
+
+  /* Radii */
+  --radius-sm:   5px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(26,23,20,0.06), 0 1px 2px rgba(26,23,20,0.04);
+  --shadow-md: 0 4px 12px rgba(26,23,20,0.08), 0 2px 4px rgba(26,23,20,0.04);
+  --shadow-lg: 0 12px 32px rgba(26,23,20,0.10), 0 4px 8px rgba(26,23,20,0.06);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Base reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-border); border-radius: 3px; }
+
+/* ─── Focus ──────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ─── Selection ──────────────────────────────────────────────── */
+::selection { background: rgba(232, 100, 42, 0.18); }
+
+/* ─── Keyframes ──────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Animation utilities ──────────────────────────────────── */
+.anim-fade-up   { animation: fade-up  0.5s cubic-bezier(0.22,1,0.36,1) both; }
+.anim-fade-in   { animation: fade-in  0.4s ease both; }
+.anim-slide-in  { animation: slide-in-right 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+.delay-1 { animation-delay: 80ms; }
+.delay-2 { animation-delay: 180ms; }
+.delay-3 { animation-delay: 280ms; }
+.delay-4 { animation-delay: 380ms; }
+.delay-5 { animation-delay: 460ms; }
+
+/* ─── Dot pulse ──────────────────────────────────────────── */
+.dot-pulse { animation: dot-pulse 1.8s ease-in-out infinite; }
+
+/* ─── Grain texture overlay (subtle human touch) ─────────── */
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Kbd style ──────────────────────────────────────────── */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-border);
+  border-bottom: 2px solid var(--bg-border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
