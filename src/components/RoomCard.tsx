@@ -1,11 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { BoltIcon, QrIcon } from "@/components/icons";
+import CreateRoomButton from "@/components/CreateRoomButton";
+import { isValidRoomId, normalizeRoomId, roomPath } from "@/lib/roomId";
 
 export default function RoomCard() {
+  const router = useRouter();
   const [tab, setTab] = useState<"create" | "join">("create");
   const [code, setCode] = useState("");
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  function handleJoin(event: FormEvent) {
+    event.preventDefault();
+    const normalized = normalizeRoomId(code);
+
+    if (!normalized) {
+      setJoinError("Enter a room code to join.");
+      return;
+    }
+
+    if (!isValidRoomId(normalized)) {
+      setJoinError("Use a code like DBMS-4821 (4 letters, a dash, 4 digits).");
+      return;
+    }
+
+    setJoinError(null);
+    router.push(roomPath(normalized, "tablet"));
+  }
 
   return (
     <div
@@ -27,7 +50,11 @@ export default function RoomCard() {
         {(["create", "join"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            type="button"
+            onClick={() => {
+              setTab(t);
+              setJoinError(null);
+            }}
             className="flex-1 py-2 text-sm font-medium rounded-lg transition-all cursor-pointer"
             style={
               tab === t
@@ -53,36 +80,65 @@ export default function RoomCard() {
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               Start a room on this device. Share the code or QR with your tablet.
             </p>
-            <button
+            <CreateRoomButton
               id="create-room-btn"
               className="btn-primary w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-xl cursor-pointer"
             >
               <BoltIcon className="w-4 h-4" />
               Create new room
-            </button>
+            </CreateRoomButton>
           </div>
         ) : (
           <div key="join" className="anim-fade-in flex flex-col gap-4">
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               Enter the room code from your laptop to receive screenshots.
             </p>
-            <div className="flex gap-2">
-              <input
-                id="room-code-input"
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="DBMS-4821"
-                maxLength={10}
-                className="field-input code-font flex-1 px-4 py-3 text-sm font-medium tracking-widest rounded-xl"
-              />
-              <button
-                id="join-room-btn"
-                className="btn-primary px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer"
-              >
-                Join
-              </button>
-            </div>
+            <form onSubmit={handleJoin} className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  id="room-code-input"
+                  type="text"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value.toUpperCase());
+                    if (joinError) setJoinError(null);
+                  }}
+                  placeholder="DBMS-4821"
+                  maxLength={10}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  aria-invalid={joinError ? true : undefined}
+                  aria-describedby={joinError ? "join-room-error" : undefined}
+                  className="field-input code-font flex-1 px-4 py-3 text-sm font-medium tracking-widest rounded-xl"
+                  style={
+                    joinError
+                      ? {
+                          borderColor: "var(--error)",
+                          boxShadow: "0 0 0 3px rgba(220, 53, 69, 0.12)",
+                        }
+                      : undefined
+                  }
+                />
+                <button
+                  id="join-room-btn"
+                  type="submit"
+                  className="btn-primary px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer"
+                >
+                  Join
+                </button>
+              </div>
+              {joinError ? (
+                <p
+                  id="join-room-error"
+                  role="alert"
+                  className="text-xs leading-relaxed"
+                  style={{ color: "var(--error)" }}
+                >
+                  {joinError}
+                </p>
+              ) : null}
+            </form>
           </div>
         )}
 

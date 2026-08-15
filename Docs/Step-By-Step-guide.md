@@ -57,40 +57,39 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 2 — Room identity and routing `[next]`
+## Step 2 — Room identity and routing `[done]`
 
 **Goal:** Clicking Create / Join actually takes you to a room URL. No realtime yet — just pages and IDs.
 
-**What to build**
+**What was built**
 
-1. Room ID format: short, readable, e.g. `DBMS-4821` (4 letters + 4 digits, or similar).
-2. Helper: `src/lib/roomId.ts` — `generateRoomId()`, `isValidRoomId()`.
-3. Dynamic route: `src/app/room/[roomId]/page.tsx`.
-4. Wire landing buttons:
-   - **Create room** → generate ID → `router.push(/room/{id}?role=host)`
-   - **Join room** → validate code → `router.push(/room/{id}?role=tablet)`
-5. Invalid codes show a simple error on the landing join input (do not navigate).
-6. Placeholder room page: “Room DBMS-4821” + Host vs Tablet label from the query. Empty state is fine.
+- Room ID format: `XXXX-0000` (4 letters + 4 digits)
+- Helper: `src/lib/roomId.ts` — `generateRoomId()`, `isValidRoomId()`, `normalizeRoomId()`, `roomPath()`
+- Dynamic route: `src/app/room/[roomId]/page.tsx` (placeholder with Host vs Tablet label)
+- Create room / landing CTA navigate to `/room/{id}?role=host`
+- Join room validates the code, then navigates to `/room/{id}?role=tablet`
+- Invalid codes stay on the home page with an error under the join input
 
-**Files to add**
+**Files**
 
 - `src/lib/roomId.ts`
 - `src/app/room/[roomId]/page.tsx`
-- Update `src/components/RoomCard.tsx` (make it a client component that navigates)
-- Update landing CTA `#create-room-btn` / `#cta-create-room-btn` the same way
+- `src/components/CreateRoomButton.tsx`
+- `src/components/RoomCard.tsx`
+- `src/app/page.tsx`
 
 **Done when**
 
-- [ ] Create room opens `/room/XXXX-0000?role=host`
-- [ ] Join with a valid code opens `/room/XXXX-0000?role=tablet`
-- [ ] Bad join codes stay on the home page with an error
-- [ ] Refreshing the room URL still shows the placeholder
+- [x] Create room opens `/room/XXXX-0000?role=host`
+- [x] Join with a valid code opens `/room/XXXX-0000?role=tablet`
+- [x] Bad join codes stay on the home page with an error
+- [x] Refreshing the room URL still shows the placeholder
 
 **Do not do in this step:** sockets, QR, or sending images.
 
 ---
 
-## Step 3 — Realtime room server
+## Step 3 — Realtime room server `[next]`
 
 **Goal:** A tiny Socket.io (or similar) gateway that can create rooms, join rooms, and broadcast events. Images are not stored on disk.
 
@@ -445,8 +444,8 @@ Only after the loop above is reliable:
 | Step | Piece | Status |
 | :---: | :--- | :---: |
 | 1 | Home page | done |
-| 2 | Room IDs + `/room/[roomId]` | next |
-| 3 | Socket room server | todo |
+| 2 | Room IDs + `/room/[roomId]` | done |
+| 3 | Socket room server | next |
 | 4 | Host dashboard | todo |
 | 5 | Tablet feed shell | todo |
 | 6 | QR pairing | todo |

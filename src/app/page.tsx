@@ -5,6 +5,7 @@ import BeforeAfter from "@/components/BeforeAfter";
 import Features from "@/components/Features";
 import Footer from "@/components/Footer";
 import Reveal from "@/components/Reveal";
+import CreateRoomButton from "@/components/CreateRoomButton";
 
 const slides = [
   {
@@ -303,7 +304,7 @@ export default function HomePage() {
                 Create a room. Scan with tablet. Start lecture.
               </p>
             </div>
-            <button
+            <CreateRoomButton
               id="cta-create-room-btn"
               className="btn-primary relative flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold cursor-pointer"
             >
@@ -320,7 +321,7 @@ export default function HomePage() {
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />
               </svg>
-            </button>
+            </CreateRoomButton>
           </div>
           </Reveal>
         </section>
