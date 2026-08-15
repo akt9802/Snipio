@@ -2,9 +2,8 @@ import { BoltIcon } from "@/components/icons";
 
 export default function Footer() {
   return (
-    <footer style={{ borderTop: "1px solid var(--bg-border)" }}>
-      <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Brand */}
+    <footer style={{ borderTop: "1px solid var(--bg-border)", background: "var(--bg-elevated)" }}>
+      <div className="page-wrap py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <div
             className="w-6 h-6 rounded-lg flex items-center justify-center"

@@ -1,9 +1,9 @@
 import { MonitorIcon, TabletIcon, CameraIcon } from "@/components/icons";
+import Reveal from "@/components/Reveal";
 
 const steps = [
   {
     icon: MonitorIcon,
-    emoji: "💻",
     step: "01",
     title: "Open Snipio on your laptop",
     description:
@@ -11,7 +11,6 @@ const steps = [
   },
   {
     icon: TabletIcon,
-    emoji: "📱",
     step: "02",
     title: "Scan the QR on your tablet",
     description:
@@ -19,7 +18,6 @@ const steps = [
   },
   {
     icon: CameraIcon,
-    emoji: "📸",
     step: "03",
     title: "Press Alt+S during lecture",
     description:
@@ -29,8 +27,9 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="max-w-5xl mx-auto px-6 py-20">
-      <div className="mb-12">
+    <section id="how-it-works" className="page-wrap py-20">
+      <Reveal>
+      <div className="mb-12 max-w-2xl">
         <div className="flex items-center gap-2 mb-3">
           <div
             className="w-1 h-4 rounded-full"
@@ -44,7 +43,7 @@ export default function HowItWorks() {
           </p>
         </div>
         <h2
-          className="text-2xl md:text-3xl font-bold tracking-tight"
+          className="text-2xl md:text-[32px] font-bold tracking-tight"
           style={{ color: "var(--text-primary)" }}
         >
           Set up once. Forget about it.
@@ -53,31 +52,35 @@ export default function HowItWorks() {
           Three steps from zero to synced — and only the first one is on your laptop.
         </p>
       </div>
+      </Reveal>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="relative grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div
+          className="hidden md:block absolute top-[46px] left-[18%] right-[18%] h-px pointer-events-none"
+          style={{
+            background:
+              "repeating-linear-gradient(90deg, var(--bg-border) 0 8px, transparent 8px 16px)",
+          }}
+          aria-hidden
+        />
+
         {steps.map((step, i) => {
           const Icon = step.icon;
           return (
+            <Reveal key={i} delay={i * 90} className="h-full">
             <div
-              key={i}
-              className="group rounded-2xl p-6 flex flex-col gap-4 transition-all hover:-translate-y-1"
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--bg-border)",
-                boxShadow: "var(--shadow-sm)",
-              }}
+              className="surface-card relative rounded-2xl p-6 flex flex-col gap-5 h-full"
             >
-              {/* Number badge + icon */}
               <div className="flex items-center justify-between">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors group-hover:scale-110"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center"
                   style={{
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--bg-border)",
-                    transition: "transform 0.2s ease",
+                    background: "var(--accent-soft)",
+                    border: "1px solid rgba(232,100,42,0.16)",
+                    color: "var(--accent)",
                   }}
                 >
-                  <span className="text-xl">{step.emoji}</span>
+                  <Icon className="w-5 h-5" />
                 </div>
                 <span
                   className="text-2xl font-black"
@@ -93,7 +96,7 @@ export default function HowItWorks() {
 
               <div>
                 <h3
-                  className="text-sm font-semibold mb-1.5"
+                  className="text-[15px] font-semibold mb-1.5"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {step.title}
@@ -103,6 +106,7 @@ export default function HowItWorks() {
                 </p>
               </div>
             </div>
+            </Reveal>
           );
         })}
       </div>

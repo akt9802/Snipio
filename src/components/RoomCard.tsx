@@ -9,7 +9,7 @@ export default function RoomCard() {
 
   return (
     <div
-      className="w-full max-w-sm overflow-hidden"
+      className="w-full max-w-md overflow-hidden"
       style={{
         background: "var(--bg-elevated)",
         border: "1px solid var(--bg-border)",
@@ -17,7 +17,6 @@ export default function RoomCard() {
         boxShadow: "var(--shadow-lg)",
       }}
     >
-      {/* Tab bar */}
       <div
         className="flex gap-1 p-1.5"
         style={{
@@ -48,27 +47,22 @@ export default function RoomCard() {
         ))}
       </div>
 
-      {/* Body */}
-      <div className="p-5">
+      <div className="p-6">
         {tab === "create" ? (
-          <div className="flex flex-col gap-4">
+          <div key="create" className="anim-fade-in flex flex-col gap-4">
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               Start a room on this device. Share the code or QR with your tablet.
             </p>
             <button
               id="create-room-btn"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold text-white rounded-xl transition-all cursor-pointer active:scale-[0.98]"
-              style={{
-                background: "var(--accent)",
-                boxShadow: "0 2px 8px rgba(232,100,42,0.30)",
-              }}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3 px-4 text-sm font-semibold rounded-xl cursor-pointer"
             >
               <BoltIcon className="w-4 h-4" />
               Create new room
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div key="join" className="anim-fade-in flex flex-col gap-4">
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               Enter the room code from your laptop to receive screenshots.
             </p>
@@ -80,20 +74,11 @@ export default function RoomCard() {
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="DBMS-4821"
                 maxLength={10}
-                className="flex-1 px-4 py-3 text-sm font-mono font-medium tracking-widest rounded-xl outline-none transition-colors"
-                style={{
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--bg-border)",
-                  color: "var(--text-primary)",
-                }}
+                className="field-input code-font flex-1 px-4 py-3 text-sm font-medium tracking-widest rounded-xl"
               />
               <button
                 id="join-room-btn"
-                className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer active:scale-[0.98]"
-                style={{
-                  background: "var(--accent)",
-                  boxShadow: "0 2px 8px rgba(232,100,42,0.30)",
-                }}
+                className="btn-primary px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer"
               >
                 Join
               </button>
@@ -101,13 +86,17 @@ export default function RoomCard() {
           </div>
         )}
 
-        {/* QR hint */}
         <div
-          className="mt-4 pt-4 flex items-center gap-2.5"
+          className="mt-5 pt-4 flex items-center gap-2.5"
           style={{ borderTop: "1px solid var(--bg-border)" }}
         >
-          <QrIcon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}
+          >
+            <QrIcon className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+          </div>
+          <span className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
             {tab === "create"
               ? "QR code generated automatically for quick tablet pairing"
               : "You can also scan the QR code displayed on your laptop"}

@@ -1,3 +1,5 @@
+import Reveal from "@/components/Reveal";
+
 const before = [
   "Take screenshot",
   "Open WhatsApp Web",
@@ -17,24 +19,36 @@ const after = [
 
 export default function BeforeAfter() {
   return (
-    <section className="max-w-5xl mx-auto px-6 py-10">
+    <section className="page-wrap py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Before */}
+        <Reveal className="h-full">
         <div
-          className="rounded-2xl p-6"
+          className="rounded-2xl p-6 md:p-7 h-full"
           style={{
             background: "var(--bg-elevated)",
             border: "1px solid var(--bg-border)",
             boxShadow: "var(--shadow-sm)",
           }}
         >
-          <div className="flex items-center gap-2 mb-5">
-            <span className="text-base">😮‍💨</span>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-base" aria-hidden>😮‍💨</span>
+              <span
+                className="text-xs font-semibold uppercase tracking-widest"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Without Snipio
+              </span>
+            </div>
             <span
-              className="text-xs font-semibold uppercase tracking-widest"
-              style={{ color: "var(--text-muted)" }}
+              className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+              style={{
+                color: "var(--text-muted)",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--bg-border)",
+              }}
             >
-              Without Snipio
+              8 steps
             </span>
           </div>
           <ul className="flex flex-col gap-2.5">
@@ -70,26 +84,39 @@ export default function BeforeAfter() {
             8 steps. Every. Single. Time.
           </p>
         </div>
+        </Reveal>
 
-        {/* After */}
+        <Reveal delay={100} className="h-full">
         <div
-          className="rounded-2xl p-6"
+          className="rounded-2xl p-6 md:p-7 h-full"
           style={{
             background: "linear-gradient(145deg, #fff9f6 0%, #fff4ee 100%)",
             border: "1px solid rgba(232,100,42,0.22)",
             boxShadow: "var(--shadow-sm)",
           }}
         >
-          <div className="flex items-center gap-2 mb-5">
-            <span className="text-base">⚡</span>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-base" aria-hidden>⚡</span>
+              <span
+                className="text-xs font-semibold uppercase tracking-widest"
+                style={{ color: "var(--accent)" }}
+              >
+                With Snipio
+              </span>
+            </div>
             <span
-              className="text-xs font-semibold uppercase tracking-widest"
-              style={{ color: "var(--accent)" }}
+              className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                color: "var(--accent)",
+                background: "rgba(232,100,42,0.10)",
+                border: "1px solid rgba(232,100,42,0.20)",
+              }}
             >
-              With Snipio
+              3 steps
             </span>
           </div>
-          <ul className="flex flex-col gap-4">
+          <ul className="flex flex-col gap-5">
             {after.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span
@@ -124,7 +151,7 @@ export default function BeforeAfter() {
                         color: "var(--accent)",
                         background: "rgba(232,100,42,0.10)",
                         border: "1px solid rgba(232,100,42,0.20)",
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
                       }}
                     >
                       &lt;100ms
@@ -135,12 +162,13 @@ export default function BeforeAfter() {
             ))}
           </ul>
           <p
-            className="mt-6 text-xs font-medium"
+            className="mt-8 text-xs font-medium"
             style={{ color: "var(--text-muted)" }}
           >
             After the first setup, it&apos;s just one keystroke.
           </p>
         </div>
+        </Reveal>
       </div>
     </section>
   );
