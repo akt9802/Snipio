@@ -89,57 +89,41 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 3 — Realtime room server `[next]`
+## Step 3 — Realtime room server `[done]`
 
 **Goal:** A tiny Socket.io (or similar) gateway that can create rooms, join rooms, and broadcast events. Images are not stored on disk.
 
-**What to build**
+**What was built**
 
-1. Lightweight server, e.g. `server/socketServer.ts` (or a Next.js custom server / separate Node process).
-2. In-memory rooms:
+- Separate Socket.io process (`server/socketServer.ts`) on port 3001
+- In-memory rooms (no database; gone on process restart)
+- Events: `room:create`, `room:join`, `room:presence`, `room:error`, plus `slide:captured` / `slide:received` forwarding (no UI yet)
+- TTL: rooms expire **3 hours after last activity**; host disconnect does not delete the room
+- Client helper: `connect()`, `createRoom()`, `joinRoom()`
+- Room page shows live device count (1 → 2 when a second tab joins) and unknown-room errors
+- `npm run dev` starts web + socket together
 
-```text
-Room {
-  id
-  createdAt
-  expiresAt          // e.g. 3 hours
-  hostSocketId?
-  devices: { id, role: host | tablet | extension }[]
-}
-```
-
-3. Events (names can stay like this):
-
-| Event | Who sends | Meaning |
-| :--- | :--- | :--- |
-| `room:create` | laptop | Create or claim a room as host |
-| `room:join` | tablet / extension | Join existing room |
-| `room:presence` | server | Device count + roles |
-| `room:error` | server | Unknown room, expired, full, etc. |
-| `slide:captured` | host / extension | Binary/base64 image + timestamp |
-| `slide:received` | server → tablet | Forward the slide |
-
-4. No database. If the process restarts, rooms die. That is OK for MVP.
-5. TTL: delete a room after ~3 hours of idle or after host disconnects (pick one rule and stick to it).
-
-**Files to add**
+**Files**
 
 - `server/socketServer.ts`
-- `src/lib/realtime.ts` — client helper (`connect()`, `createRoom()`, `joinRoom()`)
-- Env: `NEXT_PUBLIC_SOCKET_URL`
+- `src/lib/roomEvents.ts`
+- `src/lib/realtime.ts`
+- `src/components/RoomPresence.tsx`
+- `src/app/room/[roomId]/page.tsx`
+- `.env.example` (`NEXT_PUBLIC_SOCKET_URL`, `SOCKET_PORT`)
 
 **Done when**
 
-- [ ] Two browser tabs can join the same room ID
-- [ ] Host sees “1 device” then “2 devices” when the second tab joins
-- [ ] Unknown room ID returns a clear error
-- [ ] Server logs show join / leave
+- [x] Two browser tabs can join the same room ID
+- [x] Host sees “1 device” then “2 devices” when the second tab joins
+- [x] Unknown room ID returns a clear error
+- [x] Server logs show join / leave
 
 **Do not do in this step:** QR, extension, or image transfer (you can send a test ping event if useful).
 
 ---
 
-## Step 4 — Host dashboard (laptop room view)
+## Step 4 — Host dashboard (laptop room view) `[next]`
 
 **Goal:** After Create room, the laptop shows a real host screen: code, QR placeholder, live device list.
 
@@ -445,8 +429,8 @@ Only after the loop above is reliable:
 | :---: | :--- | :---: |
 | 1 | Home page | done |
 | 2 | Room IDs + `/room/[roomId]` | done |
-| 3 | Socket room server | next |
-| 4 | Host dashboard | todo |
+| 3 | Socket room server | done |
+| 4 | Host dashboard | next |
 | 5 | Tablet feed shell | todo |
 | 6 | QR pairing | todo |
 | 7 | Drop/paste image → tablet | todo |

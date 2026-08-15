@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import RoomPresence from "@/components/RoomPresence";
 import { MonitorIcon, TabletIcon } from "@/components/icons";
 import { isValidRoomId, normalizeRoomId } from "@/lib/roomId";
 
@@ -97,23 +98,12 @@ export default async function RoomPage({
                     : "You’re in this room. Open it as host or tablet from the home page."}
               </p>
 
-              <div
-                className="w-full rounded-xl px-4 py-8"
-                style={{
-                  background: "var(--bg-surface)",
-                  border: "1px dashed var(--bg-border)",
-                }}
-              >
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Waiting for devices…
-                </p>
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--text-placeholder)" }}
-                >
-                  Live connection comes in a later step.
-                </p>
-              </div>
+              <RoomPresence
+                key={`${roomId}-${role}`}
+                roomId={valid ? roomId : decodeURIComponent(rawId)}
+                role={role}
+                valid={valid}
+              />
 
               <Link
                 href="/"
