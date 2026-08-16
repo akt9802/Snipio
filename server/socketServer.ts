@@ -1,13 +1,14 @@
 import { createServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { isValidRoomId, normalizeRoomId } from "../src/lib/roomId";
-import type {
-  DeviceRole,
-  PresencePayload,
-  RoomCreatePayload,
-  RoomErrorPayload,
-  RoomJoinPayload,
-  SlidePayload,
+import {
+  isValidSlidePayload,
+  type DeviceRole,
+  type PresencePayload,
+  type RoomCreatePayload,
+  type RoomErrorPayload,
+  type RoomJoinPayload,
+  type SlidePayload,
 } from "../src/lib/roomEvents";
 
 /**
@@ -229,9 +230,13 @@ io.on("connection", (socket) => {
     if (!roomId) return;
     const room = getLiveRoom(roomId);
     if (!room) return;
+    if (!isValidSlidePayload(payload)) {
+      log(`slide rejected ${roomId} from=${socket.id}`);
+      return;
+    }
     touch(room);
     socket.to(roomId).emit("slide:received", payload);
-    log(`slide ${roomId} from=${socket.id}`);
+    log(`slide ${roomId} id=${payload.id} mime=${payload.mime} from=${socket.id}`);
   });
 
   socket.on("disconnect", (reason) => {

@@ -92,6 +92,10 @@ export function joinRoom(
   else socket.once("connect", send);
 }
 
+export function sendSlide(socket: RealtimeSocket, payload: SlidePayload) {
+  socket.emit("slide:captured", payload);
+}
+
 export function disconnect(socket: RealtimeSocket) {
   socket.removeAllListeners();
   socket.disconnect();

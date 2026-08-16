@@ -1,10 +1,19 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AutoSaveToggle from "@/components/room/AutoSaveToggle";
-import SlideCard, { type SlideCardProps } from "@/components/room/SlideCard";
+import SlideCard from "@/components/room/SlideCard";
 import { BoltIcon } from "@/components/layout/icons";
 import { useRoomSession } from "@/lib/useRoomSession";
+import type { SlidePayload } from "@/lib/roomEvents";
+import {
+  formatSlideTime,
+  revokeSlide,
+  slideFileName,
+  slideFromPayload,
+  type Slide,
+} from "@/lib/slides";
 
 type Props = {
   roomId: string;
@@ -12,8 +21,40 @@ type Props = {
 };
 
 export default function TabletFeed({ roomId, valid }: Props) {
-  const { status, presence, error, serverDown } = useRoomSession(roomId, "tablet", valid);
-  const slides: SlideCardProps[] = [];
+  const { status, presence, error, serverDown, subscribeSlides } = useRoomSession(
+    roomId,
+    "tablet",
+    valid,
+  );
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const slidesRef = useRef<Slide[]>([]);
+
+  useEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
+
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    function onReceived(payload: SlidePayload) {
+      const slide = slideFromPayload(payload);
+      if (!slide) return;
+      setSlides((prev) => {
+        for (const item of prev) {
+          if (item.id === slide.id) revokeSlide(item);
+        }
+        return [slide, ...prev.filter((item) => item.id !== slide.id)];
+      });
+    }
+
+    return subscribeSlides(onReceived);
+  }, [status, subscribeSlides]);
+
+  useEffect(() => {
+    return () => {
+      for (const slide of slidesRef.current) revokeSlide(slide);
+    };
+  }, []);
 
   const roomMissing =
     error?.code === "unknown_room" || error?.code === "expired" || error?.code === "invalid_id";
@@ -128,9 +169,14 @@ export default function TabletFeed({ roomId, valid }: Props) {
           <EmptyFeed connecting={!inRoom} />
         ) : (
           <ul className="flex flex-col gap-3">
-            {slides.map((slide) => (
-              <li key={slide.id}>
-                <SlideCard {...slide} />
+            {slides.map((slide, index) => (
+              <li key={slide.id} className={index === 0 ? "anim-fade-up" : undefined}>
+                <SlideCard
+                  id={slide.id}
+                  name={slideFileName(slide.mime, slide.createdAt)}
+                  time={formatSlideTime(slide.createdAt)}
+                  src={slide.objectUrl}
+                />
               </li>
             ))}
           </ul>
@@ -154,7 +200,7 @@ function EmptyFeed({ connecting }: { connecting: boolean }) {
         Waiting for slides.
       </p>
       <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        Press <kbd>Alt</kbd>+<kbd>S</kbd> on the laptop.
+        Drop or paste a screenshot on the laptop.
       </p>
       <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
         {connecting ? "Connecting to the room…" : "New slides will show up here, newest first."}

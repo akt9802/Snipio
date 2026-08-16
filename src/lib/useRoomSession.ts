@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   connect,
   createRoom,
   disconnect,
   joinRoom,
+  sendSlide as emitCapturedSlide,
   type PresencePayload,
   type RoomErrorPayload,
+  type SlidePayload,
 } from "@/lib/realtime";
 
 export type RoomSessionStatus = "connecting" | "connected" | "disconnected";
@@ -17,6 +19,8 @@ export type RoomSession = {
   presence: PresencePayload | null;
   error: RoomErrorPayload | null;
   serverDown: boolean;
+  sendSlide: (payload: SlidePayload) => boolean;
+  subscribeSlides: (handler: (payload: SlidePayload) => void) => () => void;
 };
 
 export function useRoomSession(
@@ -28,11 +32,13 @@ export function useRoomSession(
   const [presence, setPresence] = useState<PresencePayload | null>(null);
   const [error, setError] = useState<RoomErrorPayload | null>(null);
   const [serverDown, setServerDown] = useState(false);
+  const socketRef = useRef<ReturnType<typeof connect> | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
 
     const socket = connect();
+    socketRef.current = socket;
 
     function enter() {
       setStatus("connected");
@@ -69,6 +75,7 @@ export function useRoomSession(
     if (socket.connected) enter();
 
     return () => {
+      socketRef.current = null;
       socket.off("connect", enter);
       socket.off("room:presence", onPresence);
       socket.off("room:error", onError);
@@ -78,5 +85,21 @@ export function useRoomSession(
     };
   }, [roomId, role, enabled]);
 
-  return { status, presence, error, serverDown };
+  const sendSlide = useCallback((payload: SlidePayload) => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return false;
+    emitCapturedSlide(socket, payload);
+    return true;
+  }, []);
+
+  const subscribeSlides = useCallback((handler: (payload: SlidePayload) => void) => {
+    const socket = socketRef.current;
+    if (!socket) return () => {};
+    socket.on("slide:received", handler);
+    return () => {
+      socket.off("slide:received", handler);
+    };
+  }, []);
+
+  return { status, presence, error, serverDown, sendSlide, subscribeSlides };
 }

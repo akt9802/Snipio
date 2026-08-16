@@ -210,36 +210,44 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 7 — Manual drop on host (first real transfer) `[next]`
+## Step 7 — Manual drop on host (first real transfer) `[done]`
 
 **Goal:** Prove the pipe: drop/paste an image on the laptop → tablet feed shows it. No extension yet.
 
-**What to build**
+**What was built**
 
-1. Host dropzone + paste (`Ctrl/Cmd+V`) accepts `image/png` / `image/jpeg`.
-2. Convert file → ArrayBuffer or base64.
-3. Emit `slide:captured` with `{ id, mime, bytes, createdAt }`.
-4. Server broadcasts `slide:received` to everyone in the room except the sender (or to tablets only).
-5. Tablet prepends a `SlideCard` with a blob URL.
-6. Keep slides **in memory on each client**. Server must not write files to disk.
+- Host dropzone accepts `image/png` / `image/jpeg` via drop, paste (`Ctrl/Cmd+V`), or file picker
+- Client converts the file to base64 and emits `slide:captured` with `{ id, mime, bytes, createdAt }`
+- Server validates mime/size in memory and broadcasts `slide:received` to the rest of the room (not the sender). No files written to disk
+- Host dropzone shows sending / sent / error, plus a **Sent this session** thumbnail grid of every slide that went out
+- Tablet prepends a `SlideCard` with a blob URL; slides stay **in memory on each client**
+- Tablet empty state tells you to drop or paste on the laptop
 
 **Files**
 
 - `src/lib/slides.ts` (types + blob helpers)
-- Update `HostDashboard`, `TabletFeed`, `SlideCard`, `realtime.ts`
+- `src/lib/roomEvents.ts` (`isValidSlidePayload`)
+- `src/lib/realtime.ts` (`sendSlide`)
+- `src/lib/useRoomSession.ts` (`sendSlide` + `subscribeSlides`)
+- `src/components/room/HostDashboard.tsx`
+- `src/components/room/TabletFeed.tsx`
+- `src/components/room/SlideCard.tsx`
+- `server/socketServer.ts`
 
 **Done when**
 
-- [ ] Drop a PNG on the host tab
-- [ ] Tablet tab shows that image in under ~200ms on the same Wi‑Fi
-- [ ] Two drops appear in capture order
-- [ ] Refreshing the tablet loses history (expected for MVP — no persistence)
+- [x] Drop a PNG on the host tab
+- [x] Tablet tab shows that image in under ~200ms on the same Wi‑Fi
+- [x] Two drops appear in capture order
+- [x] Refreshing the tablet loses history (expected for MVP — no persistence)
+
+**Do not do in this step:** extension capture, or tablet copy / drag / auto-save.
 
 This is the first “magic” moment. Get this solid before the extension.
 
 ---
 
-## Step 8 — Chrome extension scaffold
+## Step 8 — Chrome extension scaffold `[next]`
 
 **Goal:** A Manifest V3 extension that can be loaded unpacked and knows which room it belongs to.
 
@@ -440,8 +448,8 @@ Only after the loop above is reliable:
 | 4 | Host dashboard | done |
 | 5 | Tablet feed shell | done |
 | 6 | QR pairing | done |
-| 7 | Drop/paste image → tablet | next |
-| 8 | Extension scaffold | todo |
+| 7 | Drop/paste image → tablet | done |
+| 8 | Extension scaffold | next |
 | 9 | Alt+S canvas capture | todo |
 | 10 | Copy / drag / auto-save | todo |
 | 11 | Folder watcher | todo |

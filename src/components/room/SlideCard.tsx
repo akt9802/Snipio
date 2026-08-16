@@ -2,9 +2,10 @@ export type SlideCardProps = {
   id: string;
   name: string;
   time: string;
+  src: string;
 };
 
-export default function SlideCard({ name, time }: SlideCardProps) {
+export default function SlideCard({ name, time, src }: SlideCardProps) {
   return (
     <article
       className="overflow-hidden rounded-xl"
@@ -14,10 +15,9 @@ export default function SlideCard({ name, time }: SlideCardProps) {
         boxShadow: "var(--shadow-sm)",
       }}
     >
-      <div className="h-36 flex items-center justify-center" style={{ background: "#fde8d8" }}>
-        <span className="text-xs code-font" style={{ color: "var(--text-muted)" }}>
-          slide.png
-        </span>
+      <div className="bg-[var(--bg-surface)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={name} className="block w-full h-auto max-h-[70vh] object-contain mx-auto" />
       </div>
       <div className="px-3 py-2.5" style={{ borderTop: "1px solid var(--bg-border)" }}>
         <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>

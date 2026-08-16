@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import {
   CameraIcon,
@@ -12,7 +12,20 @@ import {
 } from "@/components/layout/icons";
 import JoinQr from "@/components/room/JoinQr";
 import { useRoomSession } from "@/lib/useRoomSession";
-import type { DeviceRole, RoomDevice } from "@/lib/roomEvents";
+import type { DeviceRole, RoomDevice, SlidePayload } from "@/lib/roomEvents";
+import {
+  fileToSlidePayload,
+  formatSlideTime,
+  imageFromClipboard,
+  imagesFromDataTransfer,
+  isAllowedSlideMime,
+  revokeSlide,
+  slideFileName,
+  slideFromLocalFile,
+  slideReadMessage,
+  validateSlideFile,
+  type Slide,
+} from "@/lib/slides";
 
 type Props = {
   roomId: string;
@@ -34,7 +47,7 @@ function roleMeta(role: DeviceRole) {
 }
 
 export default function HostDashboard({ roomId, valid }: Props) {
-  const { status, presence, error, serverDown } = useRoomSession(roomId, "host", valid);
+  const { status, presence, error, serverDown, sendSlide } = useRoomSession(roomId, "host", valid);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -56,9 +69,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
     }
   }
 
-  function preventFileOpen(event: DragEvent) {
-    event.preventDefault();
-  }
+  const canSend = valid && status === "connected" && Boolean(presence) && !error && !serverDown;
 
   let statusTitle = "Connecting…";
   let statusDetail = "Claiming this room as host.";
@@ -221,30 +232,312 @@ export default function HostDashboard({ roomId, valid }: Props) {
         </section>
       </div>
 
+      <HostDropzone sendSlide={sendSlide} canSend={canSend} />
+    </div>
+  );
+}
+
+type DropState =
+  | { kind: "idle" }
+  | { kind: "dragging" }
+  | { kind: "sending" }
+  | { kind: "sent" }
+  | { kind: "error"; message: string };
+
+function HostDropzone({
+  sendSlide,
+  canSend,
+}: {
+  sendSlide: (payload: SlidePayload) => boolean;
+  canSend: boolean;
+}) {
+  const [state, setState] = useState<DropState>({ kind: "idle" });
+  const [sentSlides, setSentSlides] = useState<Slide[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const sendingRef = useRef(false);
+  const dragDepthRef = useRef(0);
+  const sentSlidesRef = useRef<Slide[]>([]);
+
+  useEffect(() => {
+    sentSlidesRef.current = sentSlides;
+  }, [sentSlides]);
+
+  useEffect(() => {
+    return () => {
+      for (const slide of sentSlidesRef.current) revokeSlide(slide);
+    };
+  }, []);
+
+  const ingestFiles = useCallback(
+    async (files: File[]) => {
+      if (sendingRef.current) return;
+
+      const images = files.filter((file) => isAllowedSlideMime(file.type));
+      if (images.length === 0) {
+        setState({ kind: "error", message: "PNG or JPEG only." });
+        return;
+      }
+
+      if (!canSend) {
+        setState({ kind: "error", message: "Connect to the room first." });
+        return;
+      }
+
+      sendingRef.current = true;
+      setState({ kind: "sending" });
+
+      try {
+        for (const file of images) {
+          const problem = validateSlideFile(file);
+          if (problem) {
+            setState({ kind: "error", message: slideReadMessage(problem) });
+            return;
+          }
+          const payload = await fileToSlidePayload(file);
+          if (!sendSlide(payload)) {
+            setState({ kind: "error", message: "Connect to the room first." });
+            return;
+          }
+          const local = slideFromLocalFile(file, payload.id, payload.createdAt);
+          if (local) {
+            setSentSlides((prev) => [local, ...prev]);
+          }
+          setState({ kind: "sent" });
+        }
+      } catch {
+        setState({ kind: "error", message: "Couldn’t read that image." });
+      } finally {
+        sendingRef.current = false;
+      }
+    },
+    [canSend, sendSlide],
+  );
+
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      const file = imageFromClipboard(event);
+      if (!file) return;
+      event.preventDefault();
+      void ingestFiles([file]);
+    }
+
+    function hasFiles(event: globalThis.DragEvent) {
+      return event.dataTransfer?.types.includes("Files") ?? false;
+    }
+
+    function onDragEnter(event: globalThis.DragEvent) {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setState((current) => (current.kind === "sending" ? current : { kind: "dragging" }));
+    }
+
+    function onDragOver(event: globalThis.DragEvent) {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+    }
+
+    function onDragLeave(event: globalThis.DragEvent) {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setState((current) => (current.kind === "dragging" ? { kind: "idle" } : current));
+      }
+    }
+
+    function onDrop(event: globalThis.DragEvent) {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      const images = imagesFromDataTransfer(event.dataTransfer);
+      void ingestFiles(images);
+    }
+
+    window.addEventListener("paste", onPaste);
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("paste", onPaste);
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [ingestFiles]);
+
+  function onZoneDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current = 0;
+    void ingestFiles(imagesFromDataTransfer(event.dataTransfer));
+  }
+
+  const dragging = state.kind === "dragging";
+  const sending = state.kind === "sending";
+  const sent = sentSlides.length > 0 && !dragging && !sending && state.kind !== "error";
+  const errored = state.kind === "error";
+  const sentCount = sentSlides.length;
+
+  let title = "Drop a screenshot here";
+  let detail = (
+    <>
+      PNG or JPEG. Paste with <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd>, or click to choose a file.
+    </>
+  );
+
+  if (sending) {
+    title = "Sending…";
+    detail = <>Keep this tab open while the image reaches the tablet.</>;
+  } else if (state.kind === "sent" || sent) {
+    title = sentCount === 1 ? "Sent to tablet" : `${sentCount} slides sent`;
+    detail = <>Drop or paste another screenshot to send it next.</>;
+  } else if (errored) {
+    title = "Couldn’t send that";
+    detail = <>{state.message}</>;
+  } else if (dragging) {
+    title = "Drop to send";
+    detail = <>Release to push this image to the tablet feed.</>;
+  } else if (!canSend) {
+    title = "Drop a screenshot here";
+    detail = <>Connect to the room first, then drop or paste an image.</>;
+  }
+
+  const borderColor = dragging
+    ? "rgba(232, 100, 42, 0.55)"
+    : sent
+      ? "rgba(39, 160, 90, 0.35)"
+      : errored
+        ? "rgba(220, 53, 69, 0.35)"
+        : "var(--bg-border)";
+  const background = dragging
+    ? "var(--accent-softer)"
+    : sent
+      ? "var(--success-soft)"
+      : errored
+        ? "rgba(220, 53, 69, 0.06)"
+        : "var(--bg-elevated)";
+  const iconColor = sent ? "var(--success)" : errored ? "var(--error)" : dragging ? "var(--accent)" : "var(--text-muted)";
+
+  return (
+    <div className="flex flex-col gap-5">
       <section
-        className="anim-fade-up delay-2 rounded-2xl px-6 py-10 md:px-8 text-center"
+        className="anim-fade-up delay-2 rounded-2xl px-6 py-10 md:px-8 text-center cursor-pointer"
         style={{
-          background: "var(--bg-elevated)",
-          border: "1px dashed var(--bg-border)",
-          boxShadow: "var(--shadow-sm)",
+          background,
+          border: `1px dashed ${borderColor}`,
+          boxShadow: dragging ? "var(--shadow-md)" : "var(--shadow-sm)",
+          transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
         }}
-        onDragOver={preventFileOpen}
-        onDrop={preventFileOpen}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={onZoneDrop}
+        onClick={() => {
+          if (sendingRef.current) return;
+          inputRef.current?.click();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label="Drop, paste, or choose a PNG or JPEG to send to the tablet"
       >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            const files = [...(event.target.files ?? [])];
+            event.target.value = "";
+            void ingestFiles(files);
+          }}
+        />
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-3"
           style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}
         >
-          <CameraIcon className="w-5 h-5" style={{ color: "var(--text-muted)" }} />
+          {sent ? (
+            <CheckIcon className="w-5 h-5" style={{ color: iconColor }} />
+          ) : (
+            <CameraIcon className="w-5 h-5" style={{ color: iconColor }} />
+          )}
         </div>
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          Drop a screenshot here
+          {title}
         </p>
         <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-          Manual drop and paste come in a later step. For now this is just a placeholder.
+          {detail}
         </p>
       </section>
+
+      {sentCount > 0 ? (
+        <section
+          className="anim-fade-up rounded-2xl p-5 md:p-6"
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--bg-border)",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          <div className="flex items-baseline justify-between gap-3 mb-4">
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              Sent this session
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {sentCount === 1 ? "1 slide" : `${sentCount} slides`} · newest first
+            </p>
+          </div>
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {sentSlides.map((slide, index) => (
+              <li key={slide.id}>
+                <SentSlideThumb slide={slide} newest={index === 0} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+function SentSlideThumb({ slide, newest }: { slide: Slide; newest: boolean }) {
+  const name = slideFileName(slide.mime, slide.createdAt);
+  const time = formatSlideTime(slide.createdAt);
+
+  return (
+    <article
+      className={newest ? "anim-fade-up overflow-hidden rounded-xl" : "overflow-hidden rounded-xl"}
+      style={{
+        background: "var(--bg-surface)",
+        border: newest ? "1px solid rgba(39, 160, 90, 0.35)" : "1px solid var(--bg-border)",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <div
+        className="aspect-[16/10] flex items-center justify-center overflow-hidden"
+        style={{ background: "var(--bg-overlay)" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={slide.objectUrl} alt={name} className="max-w-full max-h-full object-contain" />
+      </div>
+      <div className="px-2.5 py-2">
+        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+          {name}
+        </p>
+        <p className="text-[10px] mt-0.5 code-font" style={{ color: newest ? "var(--success)" : "var(--text-muted)" }}>
+          {newest ? `Just sent · ${time}` : time}
+        </p>
+      </div>
+    </article>
   );
 }
 
