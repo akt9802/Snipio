@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { BoltIcon, QrIcon } from "@/components/icons";
-import CreateRoomButton from "@/components/CreateRoomButton";
+import { BoltIcon, QrIcon } from "@/components/layout/icons";
+import CreateRoomButton from "@/components/landing/CreateRoomButton";
 import { isValidRoomId, normalizeRoomId, roomPath } from "@/lib/roomId";
 
 export default function RoomCard() {

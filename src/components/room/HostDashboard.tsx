@@ -10,7 +10,7 @@ import {
   MonitorIcon,
   QrIcon,
   TabletIcon,
-} from "@/components/icons";
+} from "@/components/layout/icons";
 import { useRoomSession } from "@/lib/useRoomSession";
 import type { DeviceRole, RoomDevice } from "@/lib/roomEvents";
 

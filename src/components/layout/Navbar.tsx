@@ -1,4 +1,4 @@
-import { BoltIcon } from "@/components/icons";
+import { BoltIcon } from "@/components/layout/icons";
 
 export default function Navbar() {
   return (

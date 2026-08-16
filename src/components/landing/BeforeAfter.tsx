@@ -1,4 +1,4 @@
-import Reveal from "@/components/Reveal";
+import Reveal from "@/components/layout/Reveal";
 
 const before = [
   "Take screenshot",

@@ -1,11 +1,11 @@
-import Navbar from "@/components/Navbar";
-import RoomCard from "@/components/RoomCard";
-import HowItWorks from "@/components/HowItWorks";
-import BeforeAfter from "@/components/BeforeAfter";
-import Features from "@/components/Features";
-import Footer from "@/components/Footer";
-import Reveal from "@/components/Reveal";
-import CreateRoomButton from "@/components/CreateRoomButton";
+import Navbar from "@/components/layout/Navbar";
+import RoomCard from "@/components/landing/RoomCard";
+import HowItWorks from "@/components/landing/HowItWorks";
+import BeforeAfter from "@/components/landing/BeforeAfter";
+import Features from "@/components/landing/Features";
+import Footer from "@/components/layout/Footer";
+import Reveal from "@/components/layout/Reveal";
+import CreateRoomButton from "@/components/landing/CreateRoomButton";
 
 const slides = [
   {

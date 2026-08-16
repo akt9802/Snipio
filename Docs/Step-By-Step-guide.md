@@ -38,14 +38,14 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 - `src/app/page.tsx`
 - `src/app/layout.tsx`
 - `src/app/globals.css`
-- `src/components/Navbar.tsx`
-- `src/components/RoomCard.tsx`
-- `src/components/HowItWorks.tsx`
-- `src/components/BeforeAfter.tsx`
-- `src/components/Features.tsx`
-- `src/components/Footer.tsx`
-- `src/components/Reveal.tsx`
-- `src/components/icons.tsx`
+- `src/components/layout/Navbar.tsx`
+- `src/components/landing/RoomCard.tsx`
+- `src/components/landing/HowItWorks.tsx`
+- `src/components/landing/BeforeAfter.tsx`
+- `src/components/landing/Features.tsx`
+- `src/components/layout/Footer.tsx`
+- `src/components/layout/Reveal.tsx`
+- `src/components/layout/icons.tsx`
 
 **Done when**
 
@@ -74,8 +74,8 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 - `src/lib/roomId.ts`
 - `src/app/room/[roomId]/page.tsx`
-- `src/components/CreateRoomButton.tsx`
-- `src/components/RoomCard.tsx`
+- `src/components/landing/CreateRoomButton.tsx`
+- `src/components/landing/RoomCard.tsx`
 - `src/app/page.tsx`
 
 **Done when**
@@ -108,7 +108,7 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 - `server/socketServer.ts`
 - `src/lib/roomEvents.ts`
 - `src/lib/realtime.ts`
-- `src/components/RoomPresence.tsx`
+- `src/components/room/RoomPresence.tsx`
 - `src/app/room/[roomId]/page.tsx`
 - `.env.example` (`NEXT_PUBLIC_SOCKET_URL`, `SOCKET_PORT`)
 
@@ -138,7 +138,7 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 **Files**
 
-- `src/components/HostDashboard.tsx`
+- `src/components/room/HostDashboard.tsx`
 - `src/lib/useRoomSession.ts`
 - `src/app/room/[roomId]/page.tsx`
 
@@ -152,37 +152,37 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 5 — Tablet receiver page `[next]`
+## Step 5 — Tablet receiver page `[done]`
 
 **Goal:** Joining a room on a phone/tablet shows a feed UI ready to receive slides (still empty).
 
-**What to build**
+**What was built**
 
-1. Detect `role=tablet` (or treat any non-host join as tablet).
-2. `TabletFeed` component:
-   - Header: room code, connection status, Auto-save toggle (UI only)
-   - Empty state: “Waiting for slides. Press Alt+S on the laptop.”
-   - List area for `SlideCard`s (empty for now)
-3. Join via socket. If room missing/expired, show “Room not found — create one on the laptop.”
-4. Layout must work in split-screen (narrow width, large tap targets).
+- Any non-host join (`role=tablet` or missing role) renders `TabletFeed`
+- Compact header: room code, connecting → connected status, Auto-save toggle (UI only)
+- Empty state: “Waiting for slides. Press Alt+S on the laptop.”
+- `SlideCard` list wired but empty (no images yet)
+- Unknown / expired rooms show “Room not found — create one on the laptop.”
+- Narrow layout with large tap targets for split-screen
 
-**Files to add**
+**Files**
 
-- `src/components/TabletFeed.tsx`
-- `src/components/SlideCard.tsx` (static card first)
-- `src/components/AutoSaveToggle.tsx` (local state only)
+- `src/components/room/TabletFeed.tsx`
+- `src/components/room/SlideCard.tsx`
+- `src/components/room/AutoSaveToggle.tsx`
+- `src/app/room/[roomId]/page.tsx`
 
 **Done when**
 
-- [ ] Join from home opens the tablet feed
-- [ ] Status goes from connecting → connected
-- [ ] Empty state is readable on a ~600px-wide split view
+- [x] Join from home opens the tablet feed
+- [x] Status goes from connecting → connected
+- [x] Empty state is readable on a ~600px-wide split view
 
 **Do not do in this step:** actual images, download, or drag-and-drop.
 
 ---
 
-## Step 6 — QR pairing
+## Step 6 — QR pairing `[next]`
 
 **Goal:** Tablet joins by scanning a QR instead of typing the code.
 
@@ -429,8 +429,8 @@ Only after the loop above is reliable:
 | 2 | Room IDs + `/room/[roomId]` | done |
 | 3 | Socket room server | done |
 | 4 | Host dashboard | done |
-| 5 | Tablet feed shell | next |
-| 6 | QR pairing | todo |
+| 5 | Tablet feed shell | done |
+| 6 | QR pairing | next |
 | 7 | Drop/paste image → tablet | todo |
 | 8 | Extension scaffold | todo |
 | 9 | Alt+S canvas capture | todo |

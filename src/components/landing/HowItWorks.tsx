@@ -1,5 +1,5 @@
-import { MonitorIcon, TabletIcon, CameraIcon } from "@/components/icons";
-import Reveal from "@/components/Reveal";
+import { MonitorIcon, TabletIcon, CameraIcon } from "@/components/layout/icons";
+import Reveal from "@/components/layout/Reveal";
 
 const steps = [
   {

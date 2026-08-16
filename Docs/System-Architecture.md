@@ -244,10 +244,13 @@ snipio/
 │   │       ├── page.tsx          # Dynamic View (Host vs Tablet Receiver)
 │   │       └── layout.tsx
 │   ├── components/
-│   │   ├── HostDashboard.tsx     # QR code, sync status, manual dropzone
-│   │   ├── TabletFeed.tsx        # Split-screen slide cards, drag listeners
-│   │   ├── SlideCard.tsx         # Drag & Drop, Copy, Zoom, OCR buttons
-│   │   └── AutoSaveToggle.tsx    # Auto-download configuration
+│   │   ├── layout/               # Navbar, Footer, Reveal, icons
+│   │   ├── landing/              # Home page sections & room card
+│   │   └── room/                 # Host dashboard + tablet feed
+│   │       ├── HostDashboard.tsx
+│   │       ├── TabletFeed.tsx
+│   │       ├── SlideCard.tsx
+│   │       └── AutoSaveToggle.tsx
 │   └── lib/
 │       ├── realtime.ts           # Socket.io client & WebRTC DataChannels
 │       └── autoSave.ts           # Programmatic download & clipboard handler

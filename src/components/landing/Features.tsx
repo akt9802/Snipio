@@ -1,4 +1,4 @@
-import Reveal from "@/components/Reveal";
+import Reveal from "@/components/layout/Reveal";
 import {
   ExtensionIcon,
   QrIcon,
@@ -6,7 +6,7 @@ import {
   LayoutIcon,
   ShieldIcon,
   ClockIcon,
-} from "@/components/icons";
+} from "@/components/layout/icons";
 import type { ReactElement, SVGProps } from "react";
 
 type FeatureItem = {
