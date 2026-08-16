@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import HostDashboard from "@/components/HostDashboard";
 import RoomPresence from "@/components/RoomPresence";
 import { MonitorIcon, TabletIcon } from "@/components/icons";
 import { isValidRoomId, normalizeRoomId } from "@/lib/roomId";
@@ -30,9 +31,23 @@ export default async function RoomPage({
   const roomId = normalizeRoomId(decodeURIComponent(rawId));
   const role = roleFromQuery(query.role);
   const valid = isValidRoomId(roomId);
+  const displayId = valid ? roomId : decodeURIComponent(rawId);
 
-  const roleLabel =
-    role === "host" ? "Host" : role === "tablet" ? "Tablet" : "Device";
+  if (role === "host") {
+    return (
+      <div
+        className="flex flex-col min-h-screen grain relative"
+        style={{ background: "var(--bg-base)" }}
+      >
+        <Navbar />
+        <main className="flex-1 hero-glow">
+          <HostDashboard key={displayId} roomId={displayId} valid={valid} />
+        </main>
+      </div>
+    );
+  }
+
+  const roleLabel = role === "tablet" ? "Tablet" : "Device";
   const RoleIcon = role === "tablet" ? TabletIcon : MonitorIcon;
 
   return (
@@ -84,7 +99,7 @@ export default async function RoomPage({
                 className="code-font text-3xl sm:text-4xl font-bold tracking-[0.18em]"
                 style={{ color: "var(--text-primary)" }}
               >
-                {valid ? roomId : decodeURIComponent(rawId)}
+                {displayId}
               </p>
 
               <p
@@ -93,14 +108,12 @@ export default async function RoomPage({
               >
                 {role === "tablet"
                   ? "You’re in as the tablet. Slides from the laptop will show up here."
-                  : role === "host"
-                    ? "You’re the host. Share this code with your tablet to connect."
-                    : "You’re in this room. Open it as host or tablet from the home page."}
+                  : "You’re in this room. Open it as host or tablet from the home page."}
               </p>
 
               <RoomPresence
-                key={`${roomId}-${role}`}
-                roomId={valid ? roomId : decodeURIComponent(rawId)}
+                key={`${displayId}-${role}`}
+                roomId={displayId}
                 role={role}
                 valid={valid}
               />

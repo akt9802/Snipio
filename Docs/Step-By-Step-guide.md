@@ -123,38 +123,36 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 4 — Host dashboard (laptop room view) `[next]`
+## Step 4 — Host dashboard (laptop room view) `[done]`
 
 **Goal:** After Create room, the laptop shows a real host screen: code, QR placeholder, live device list.
 
-**What to build**
+**What was built**
 
-1. Detect `role=host` on `/room/[roomId]`.
-2. `HostDashboard` component:
-   - Large room code
-   - “Waiting for tablet…” then “Tablet connected”
-   - Device count from `room:presence`
-   - Copy-code button
-   - Empty drop zone stub (“Drop a screenshot here”) — no watcher yet
-3. Connect the host socket on mount (`room:create` or `room:join` as host).
-4. Disconnect on unmount / tab close.
+- `role=host` on `/room/[roomId]` renders `HostDashboard`
+- Large room code, copy-code button, live device list from `room:presence`
+- Status: “Waiting for tablet…” then “Tablet connected”
+- QR placeholder box (no generated QR yet)
+- Empty drop-zone stub (“Drop a screenshot here”)
+- Host socket connects on mount (`room:create`) and disconnects on unmount
 
-**Files to add**
+**Files**
 
 - `src/components/HostDashboard.tsx`
-- Update `src/app/room/[roomId]/page.tsx`
+- `src/lib/useRoomSession.ts`
+- `src/app/room/[roomId]/page.tsx`
 
 **Done when**
 
-- [ ] Creating a room lands on the host dashboard
-- [ ] Opening the same room as tablet in another tab updates the host “devices connected”
-- [ ] Closing the tablet tab drops the count back
+- [x] Creating a room lands on the host dashboard
+- [x] Opening the same room as tablet in another tab updates the host “devices connected”
+- [x] Closing the tablet tab drops the count back
 
 **Do not do in this step:** generating a real QR image yet (a labeled box is enough).
 
 ---
 
-## Step 5 — Tablet receiver page
+## Step 5 — Tablet receiver page `[next]`
 
 **Goal:** Joining a room on a phone/tablet shows a feed UI ready to receive slides (still empty).
 
@@ -430,8 +428,8 @@ Only after the loop above is reliable:
 | 1 | Home page | done |
 | 2 | Room IDs + `/room/[roomId]` | done |
 | 3 | Socket room server | done |
-| 4 | Host dashboard | next |
-| 5 | Tablet feed shell | todo |
+| 4 | Host dashboard | done |
+| 5 | Tablet feed shell | next |
 | 6 | QR pairing | todo |
 | 7 | Drop/paste image → tablet | todo |
 | 8 | Extension scaffold | todo |

@@ -1,14 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  connect,
-  createRoom,
-  disconnect,
-  joinRoom,
-  type PresencePayload,
-  type RoomErrorPayload,
-} from "@/lib/realtime";
+import { useRoomSession } from "@/lib/useRoomSession";
+import type { PresencePayload } from "@/lib/realtime";
 
 type Props = {
   roomId: string;
@@ -16,68 +9,19 @@ type Props = {
   valid: boolean;
 };
 
-type Status = "connecting" | "connected" | "disconnected";
-
 function deviceLabel(count: number) {
   return count === 1 ? "1 device" : `${count} devices`;
 }
 
+function presenceRoles(presence: PresencePayload | null) {
+  return presence?.devices.map((device) => device.role).join(" · ");
+}
+
 export default function RoomPresence({ roomId, role, valid }: Props) {
-  const [status, setStatus] = useState<Status>("connecting");
-  const [presence, setPresence] = useState<PresencePayload | null>(null);
-  const [error, setError] = useState<RoomErrorPayload | null>(null);
-  const [serverDown, setServerDown] = useState(false);
+  const joinRole = role === "host" ? "host" : "tablet";
+  const { status, presence, error, serverDown } = useRoomSession(roomId, joinRole, valid);
 
-  useEffect(() => {
-    if (!valid) return;
-
-    const socket = connect();
-
-    function enter() {
-      setStatus("connected");
-      setServerDown(false);
-      if (role === "host") createRoom(socket, roomId);
-      else joinRoom(socket, roomId, "tablet");
-    }
-
-    function onPresence(payload: PresencePayload) {
-      if (payload.roomId !== roomId) return;
-      setPresence(payload);
-      setError(null);
-    }
-
-    function onError(payload: RoomErrorPayload) {
-      setError(payload);
-    }
-
-    function onDisconnect() {
-      setStatus("disconnected");
-    }
-
-    function onConnectError() {
-      setServerDown(true);
-      setStatus("disconnected");
-    }
-
-    socket.on("connect", enter);
-    socket.on("room:presence", onPresence);
-    socket.on("room:error", onError);
-    socket.on("disconnect", onDisconnect);
-    socket.on("connect_error", onConnectError);
-
-    if (socket.connected) enter();
-
-    return () => {
-      socket.off("connect", enter);
-      socket.off("room:presence", onPresence);
-      socket.off("room:error", onError);
-      socket.off("disconnect", onDisconnect);
-      socket.off("connect_error", onConnectError);
-      disconnect(socket);
-    };
-  }, [roomId, role, valid]);
-
-  const roles = presence?.devices.map((device) => device.role).join(" · ");
+  const roles = presenceRoles(presence);
 
   let title = "Connecting…";
   let detail = "Talking to the room server.";
