@@ -120,7 +120,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
         ) : serverDown ? (
           <ErrorPanel
             title="Can’t reach the room server"
-            detail="Keep npm run dev running so the tablet can join."
+            detail="The tablet loaded the page, but couldn’t join the room. Keep npm run dev running, stay on the same Wi‑Fi, and refresh this page."
           />
         ) : error ? (
           <ErrorPanel title="Couldn’t join room" detail={error.message} />

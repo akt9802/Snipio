@@ -89,7 +89,8 @@ const io: IoServer = new Server(httpServer, {
 });
 
 httpServer.on("request", (req, res) => {
-  if (req.url !== "/health" || res.headersSent) return;
+  const path = req.url ? new URL(req.url, "http://localhost").pathname : "";
+  if (path !== "/health" || res.headersSent) return;
   res.writeHead(200, { "content-type": "application/json" });
   res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
 });

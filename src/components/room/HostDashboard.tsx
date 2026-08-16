@@ -8,9 +8,9 @@ import {
   CopyIcon,
   ExtensionIcon,
   MonitorIcon,
-  QrIcon,
   TabletIcon,
 } from "@/components/layout/icons";
+import JoinQr from "@/components/room/JoinQr";
 import { useRoomSession } from "@/lib/useRoomSession";
 import type { DeviceRole, RoomDevice } from "@/lib/roomEvents";
 
@@ -70,7 +70,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
     statusTone = "error";
   } else if (serverDown) {
     statusTitle = "Can’t reach the room server";
-    statusDetail = "Restart npm run dev so the socket process is up.";
+    statusDetail = "The room server on port 3001 isn’t reachable. Keep npm run dev running (web + socket).";
     statusTone = "error";
   } else if (error) {
     statusTitle = "Couldn’t stay in the room";
@@ -215,28 +215,8 @@ export default function HostDashboard({ roomId, valid }: Props) {
           <p className="text-xs font-medium mb-4" style={{ color: "var(--text-muted)" }}>
             Tablet pairing
           </p>
-          <div
-            className="flex-1 min-h-[220px] rounded-xl flex flex-col items-center justify-center gap-3 text-center px-4"
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px dashed var(--bg-border)",
-            }}
-          >
-            <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center"
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--bg-border)",
-              }}
-            >
-              <QrIcon className="w-7 h-7" style={{ color: "var(--text-muted)" }} />
-            </div>
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              QR code
-            </p>
-            <p className="text-xs max-w-[16rem] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              A scan-to-join code will show up here in the next pairing step. Type the room code on the tablet for now.
-            </p>
+          <div className="flex-1 flex items-center justify-center">
+            <JoinQr roomId={roomId} valid={valid} />
           </div>
         </section>
       </div>

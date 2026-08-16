@@ -1,6 +1,7 @@
 "use client";
 
 import { io, type Socket } from "socket.io-client";
+import { isLoopbackHost } from "@/lib/joinOrigin";
 import type {
   PresencePayload,
   RoomCreatePayload,
@@ -32,14 +33,40 @@ export type ServerToClientEvents = {
 
 export type RealtimeSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+function envSocketUrl() {
+  return process.env.NEXT_PUBLIC_SOCKET_URL?.trim() || "";
+}
+
+/**
+ * Talk to the room server on the same hostname as the page, port 3001.
+ * Never use localhost when the page was opened via a LAN IP — that would
+ * be the tablet itself, not the laptop.
+ */
 export function getSocketUrl(): string {
-  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
-    return process.env.NEXT_PUBLIC_SOCKET_URL;
-  }
+  const fromEnv = envSocketUrl();
+
   if (typeof window !== "undefined") {
-    return `http://${window.location.hostname}:3001`;
+    if (fromEnv) {
+      try {
+        if (!isLoopbackHost(new URL(fromEnv).hostname)) return fromEnv;
+      } catch {
+        return fromEnv;
+      }
+    }
+
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    let port = "3001";
+    if (fromEnv) {
+      try {
+        port = new URL(fromEnv).port || "3001";
+      } catch {
+        port = "3001";
+      }
+    }
+    return `${protocol}//${window.location.hostname}:${port}`;
   }
-  return "http://localhost:3001";
+
+  return fromEnv || "http://localhost:3001";
 }
 
 export function connect(): RealtimeSocket {

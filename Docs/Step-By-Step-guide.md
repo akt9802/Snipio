@@ -182,26 +182,35 @@ Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solutio
 
 ---
 
-## Step 6 — QR pairing `[next]`
+## Step 6 — QR pairing `[done]`
 
 **Goal:** Tablet joins by scanning a QR instead of typing the code.
 
-**What to build**
+**What was built**
 
-1. QR encodes the full join URL, e.g. `https://<host>/room/DBMS-4821?role=tablet`.
-2. Render QR on the host dashboard (library such as `qrcode` is fine).
-3. Locally, QR must use the laptop’s LAN URL (`http://192.168.x.x:3000/...`), not `localhost` — otherwise the tablet cannot open it.
-4. Helper to pick the public origin for QR (`window.location.origin` in production; configurable in local dev).
+- QR encodes the full join URL (`/room/{id}?role=tablet`)
+- Real QR on the host dashboard (`qrcode`)
+- Local QR uses the laptop LAN IP (`http://192.168.x.x:3000`), not localhost
+- Origin helper: `NEXT_PUBLIC_APP_ORIGIN` override, else `window.location.origin`, else `/api/lan-origin`
+- Typing the room code on Join room still works
+
+**Files**
+
+- `src/lib/joinOrigin.ts`
+- `src/app/api/lan-origin/route.ts`
+- `src/components/room/JoinQr.tsx`
+- `src/components/room/HostDashboard.tsx`
+- `.env.example` (`NEXT_PUBLIC_APP_ORIGIN`)
 
 **Done when**
 
-- [ ] Phone camera scan opens the tablet feed in the browser
-- [ ] Same room, host sees the tablet connect
-- [ ] Typing the code still works as a fallback
+- [x] Phone camera scan opens the tablet feed in the browser
+- [x] Same room, host sees the tablet connect
+- [x] Typing the code still works as a fallback
 
 ---
 
-## Step 7 — Manual drop on host (first real transfer)
+## Step 7 — Manual drop on host (first real transfer) `[next]`
 
 **Goal:** Prove the pipe: drop/paste an image on the laptop → tablet feed shows it. No extension yet.
 
@@ -430,8 +439,8 @@ Only after the loop above is reliable:
 | 3 | Socket room server | done |
 | 4 | Host dashboard | done |
 | 5 | Tablet feed shell | done |
-| 6 | QR pairing | next |
-| 7 | Drop/paste image → tablet | todo |
+| 6 | QR pairing | done |
+| 7 | Drop/paste image → tablet | next |
 | 8 | Extension scaffold | todo |
 | 9 | Alt+S canvas capture | todo |
 | 10 | Copy / drag / auto-save | todo |
