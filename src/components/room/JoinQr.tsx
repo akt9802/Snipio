@@ -7,12 +7,14 @@ import { isLoopbackHost, resolveJoinOrigin, tabletJoinUrl } from "@/lib/joinOrig
 type Props = {
   roomId: string;
   valid: boolean;
+  compact?: boolean;
 };
 
-export default function JoinQr({ roomId, valid }: Props) {
+export default function JoinQr({ roomId, valid, compact = false }: Props) {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const size = compact ? 148 : 220;
 
   useEffect(() => {
     if (!valid) return;
@@ -24,7 +26,7 @@ export default function JoinQr({ roomId, valid }: Props) {
         const origin = await resolveJoinOrigin();
         const url = tabletJoinUrl(origin, roomId);
         const qr = await QRCode.toDataURL(url, {
-          width: 280,
+          width: compact ? 196 : 280,
           margin: 1,
           color: { dark: "#1a1714", light: "#ffffff" },
         });
@@ -41,62 +43,74 @@ export default function JoinQr({ roomId, valid }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [roomId, valid]);
+  }, [roomId, valid, compact]);
 
   if (!valid) {
-    return <QrFrame message="A valid room code is needed before a QR can be generated." />;
+    return <QrFrame message="A valid room code is needed before a QR can be generated." compact={compact} />;
   }
 
   if (failed) {
-    return <QrFrame message="Couldn’t generate a QR code. Type the room code on the tablet instead." />;
+    return (
+      <QrFrame
+        message="Couldn’t generate a QR code. Type the room code on the tablet instead."
+        compact={compact}
+      />
+    );
   }
 
   if (!dataUrl || !joinUrl) {
-    return <QrFrame message="Preparing join code…" pulse />;
+    return <QrFrame message="Preparing join code…" pulse compact={compact} />;
   }
 
   const loopback = isLoopbackHost(new URL(joinUrl).hostname);
 
   return (
-    <div className="flex flex-col items-center text-center gap-3">
+    <div className="flex flex-col items-center text-center gap-2.5">
       <div
         role="img"
         aria-label={`QR code to join room ${roomId}`}
-        className="rounded-xl w-[220px] h-[220px]"
+        className="rounded-xl"
         style={{
+          width: size,
+          height: size,
           background: `#fff url(${dataUrl}) center / contain no-repeat`,
           border: "1px solid var(--bg-border)",
         }}
       />
       <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-        Scan with your tablet camera
-      </p>
-      <p
-        className="text-[11px] leading-relaxed break-all max-w-[16rem] code-font"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {joinUrl}
+        Scan with the tablet camera
       </p>
       {loopback ? (
-        <p className="text-xs leading-relaxed max-w-[16rem]" style={{ color: "var(--error)" }}>
-          This URL is localhost, so a phone on Wi‑Fi can’t open it. Set NEXT_PUBLIC_APP_ORIGIN to your laptop’s LAN address (http://192.168.x.x:3000).
+        <p className="text-xs leading-relaxed" style={{ color: "var(--error)" }}>
+          This URL is localhost, so a phone on Wi‑Fi can’t open it. Set NEXT_PUBLIC_APP_ORIGIN to your laptop’s LAN address.
         </p>
       ) : (
-        <p className="text-xs leading-relaxed max-w-[16rem]" style={{ color: "var(--text-muted)" }}>
-          Or type the room code on Join room. Same Wi‑Fi required.
+        <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          {compact ? "Or type the code on Join room." : "Or type the room code on Join room. Same Wi‑Fi required."}
         </p>
       )}
     </div>
   );
 }
 
-function QrFrame({ message, pulse = false }: { message: string; pulse?: boolean }) {
+function QrFrame({
+  message,
+  pulse = false,
+  compact = false,
+}: {
+  message: string;
+  pulse?: boolean;
+  compact?: boolean;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 text-center px-4 min-h-[220px]">
+    <div
+      className="flex flex-col items-center justify-center gap-3 text-center px-2"
+      style={{ minHeight: compact ? 148 : 220 }}
+    >
       <div
-        className="w-14 h-14 rounded-xl flex items-center justify-center"
+        className="w-11 h-11 rounded-xl flex items-center justify-center"
         style={{
-          background: "var(--bg-elevated)",
+          background: "var(--bg-surface)",
           border: "1px solid var(--bg-border)",
         }}
       >
@@ -111,7 +125,7 @@ function QrFrame({ message, pulse = false }: { message: string; pulse?: boolean 
           }}
         />
       </div>
-      <p className="text-xs max-w-[16rem] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
         {message}
       </p>
     </div>
