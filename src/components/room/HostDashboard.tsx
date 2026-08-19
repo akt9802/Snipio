@@ -10,6 +10,7 @@ import {
   PaperclipIcon,
   TabletIcon,
 } from "@/components/layout/icons";
+import FolderWatch from "@/components/room/FolderWatch";
 import JoinQr from "@/components/room/JoinQr";
 import { useRoomSession } from "@/lib/useRoomSession";
 import type { DeviceRole, RoomDevice, SlidePayload } from "@/lib/roomEvents";
@@ -306,42 +307,46 @@ function HostDropzone({
 
   const ingestFiles = useCallback(
     async (files: File[]) => {
-      if (sendingRef.current) return;
+      if (sendingRef.current) return false;
 
       const images = files.filter((file) => isAllowedSlideMime(file.type));
       if (images.length === 0) {
         setState({ kind: "error", message: "PNG or JPEG only." });
-        return;
+        return false;
       }
 
       if (!canSend) {
         setState({ kind: "error", message: "Connect to the room first." });
-        return;
+        return false;
       }
 
       sendingRef.current = true;
       setState({ kind: "sending" });
+      let sent = 0;
 
       try {
         for (const file of images) {
           const problem = validateSlideFile(file);
           if (problem) {
             setState({ kind: "error", message: slideReadMessage(problem) });
-            return;
+            return sent > 0;
           }
           const payload = await fileToSlidePayload(file);
           if (!sendSlide(payload)) {
             setState({ kind: "error", message: "Connect to the room first." });
-            return;
+            return sent > 0;
           }
           const local = slideFromLocalFile(file, payload.id, payload.createdAt);
           if (local) {
             setSentSlides((prev) => [local, ...prev]);
           }
+          sent += 1;
           setState({ kind: "sent" });
         }
+        return sent > 0;
       } catch {
         setState({ kind: "error", message: "Couldn’t read that image." });
+        return sent > 0;
       } finally {
         sendingRef.current = false;
       }
@@ -550,6 +555,8 @@ function HostDropzone({
         </div>
       </section>
 
+      <FolderWatch canSend={canSend} ingestFiles={ingestFiles} />
+
       {sentCount > 0 ? (
         <section>
           <div className="flex items-baseline justify-between gap-3 mb-3 px-0.5">
@@ -602,7 +609,7 @@ function EmptyRoom() {
         Your room is empty
       </p>
       <p className="text-sm mt-1.5 max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>
-        Drop a screenshot here, or press Alt+S in the lecture tab. The crop shows here and on the tablet.
+        Drop a screenshot here, press Alt+S in the lecture tab, or watch a screenshot folder for Zoom / VLC.
       </p>
     </div>
   );

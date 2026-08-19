@@ -363,28 +363,38 @@ extension/
 
 ---
 
-## Step 11 — Folder watcher (OS screenshots) `[next]`
+## Step 11 — Folder watcher (OS screenshots) `[done]`
 
 **Goal:** Native OS snips still flow into the room when the lecture is **not** in Chrome — VLC, Zoom desktop, PowerPoint, a second monitor. Step 9 already covers in-browser region capture (Alt+S). This step is the same crop-from-disk idea for **Cmd+Shift+4** / **Win+Shift+S** files the OS writes to a folder.
 
-**What to build**
+**What was built**
 
-1. On the host dashboard, “Watch screenshot folder”.
-2. Use the **File System Access API** (`showDirectoryPicker` + periodic `dir.entries()` or `FileSystemObserver` where available).
-3. Detect new `png/jpg/webp` files (ignore already-seen names). OS region snips are already cropped — send the file as-is (same `slide:captured` path as the dropzone).
-4. Explain in UI: “Choose Desktop or the folder your OS saves screenshots to. Use this for apps outside Chrome; use Alt+S in the lecture tab.”
-5. This only runs while the host tab is open — that is acceptable for MVP.
+- Host dashboard card: **Watch screenshot folder**. Copy explains Desktop / OS screenshot folder, and that Alt+S is for in-Chrome lectures.
+- **File System Access API:** `showDirectoryPicker` (starts on Desktop). Existing files are snapshotted and ignored; only *new* `png` / `jpg` / `webp` files send. WebP is converted to PNG so it fits the existing slide pipe.
+- Watch loop: poll ~1.4s + `FileSystemObserver` when Chrome provides it + a scan when the tab becomes visible again. Duplicate `name + lastModified + size` keys are skipped. Files still being written (size 0 / too fresh) wait for the next scan.
+- New files go through the same `ingestFiles` / `slide:captured` path as dropzone, so they show on host **and** tablet.
+- Runs only while the host tab is open. Chrome/Edge only; other browsers get a short “needs Chrome or Edge” note. Grant is per session (pick the folder again after refresh).
+
+**Files**
+
+- `src/lib/folderWatch.ts`
+- `src/components/room/FolderWatch.tsx`
+- `src/components/room/HostDashboard.tsx`
+- `src/components/layout/icons.tsx` (`FolderIcon`)
+- `src/types/file-system-access.d.ts`
 
 **Done when**
 
-- [ ] User grants a folder once per session
-- [ ] A new OS screenshot file in that folder appears on the tablet without drag-drop
-- [ ] Duplicate events for the same file do not spam the feed
-- [ ] This path does not replace Alt+S region snip (Step 9) — both work
+- [x] User grants a folder once per session
+- [x] A new OS screenshot file in that folder appears on the tablet without drag-drop
+- [x] Duplicate events for the same file do not spam the feed
+- [x] This path does not replace Alt+S region snip (Step 9) — both work
+
+**Do not do in this step:** room expiry / leave / reconnect polish (Step 12).
 
 ---
 
-## Step 12 — Room lifecycle and empty / error states
+## Step 12 — Room lifecycle and empty / error states `[next]`
 
 **Goal:** Rooms feel temporary and the UI never looks “stuck”.
 
@@ -487,8 +497,8 @@ Only after the loop above is reliable:
 | 8 | Extension scaffold | done |
 | 9 | Alt+S region screenshot | done |
 | 10 | Copy / drag / auto-save | done |
-| 11 | Folder watcher | next |
-| 12 | Expiry & reconnect | todo |
+| 11 | Folder watcher | done |
+| 12 | Expiry & reconnect | next |
 | 13 | PWA | todo |
 | 14 | Room UI polish | todo |
 | 15 | Deploy + real-device test | todo |
