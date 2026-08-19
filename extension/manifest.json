@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Snipio",
+  "version": "0.1.0",
+  "description": "Send lecture screenshots to your tablet instantly. Press Alt+S to capture.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Snipio — click to set your room",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "commands": {
+    "capture": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Capture current slide and send to tablet"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://*/*"
+  ]
+}

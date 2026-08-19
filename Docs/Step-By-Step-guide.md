@@ -247,40 +247,57 @@ This is the first “magic” moment. Get this solid before the extension.
 
 ---
 
-## Step 8 — Chrome extension scaffold `[next]`
+## Step 8 — Chrome extension scaffold `[done]`
 
 **Goal:** A Manifest V3 extension that can be loaded unpacked and knows which room it belongs to.
 
-**What to build**
+**What was built**
+
+- `manifest.json`: Manifest V3, `action` popup, `commands` with `Alt+S` keybinding, `host_permissions` for `localhost` and LAN IPs, `activeTab` and `storage` permissions.
+- Popup (`popup.ts`): room code input with auto-formatting, Join / Disconnect toggle, live status indicator (idle / connecting / connected / error), advanced section to override the socket server URL. State persisted via `chrome.storage.local`.
+- Background service worker (`background.ts`): connects to Socket.io server with `transports: ['websocket']`, joins as `role: extension`, handles `room:presence` / `room:error` / `disconnect`. Notifies popup on state changes. Listens for `Alt+S` via `chrome.commands` — logs for now; full capture in Step 9. Restores connection on browser startup.
+- Host dashboard updated: shows `Extension connected` / `Ready · tablet + extension` when an extension device appears in presence.
+- Build: `npm run extension:build` (one-shot) or `npm run extension:watch` (auto-rebuild). `esbuild` and `@types/chrome` added as dev dependencies.
+
+**Extension folder**
 
 ```text
 extension/
   manifest.json
   popup.html
-  popup.ts
-  background.ts
-  content.ts
-  icons/
+  popup.ts / popup.js (built)
+  background.ts / background.js (built — includes socket.io-client bundle)
+  content.ts / content.js (built — placeholder for step 9)
+  types.ts
+  build.mjs
+  icons/icon16.svg, icon48.svg, icon128.svg
 ```
 
-1. `manifest.json`: `action`, `commands` (`Alt+S`), `host_permissions` for the Snipio origin, `activeTab`.
-2. Popup: room code input, Join / Disconnect, status (idle / connected / error).
-3. Save room ID in `chrome.storage.local`.
-4. Background service worker: connect to the same Socket.io server as the web app, join as `role: extension`.
-5. Host dashboard shows “Extension connected” when presence includes an extension.
+**Files**
+
+- `extension/manifest.json`
+- `extension/popup.html`
+- `extension/popup.ts`
+- `extension/background.ts`
+- `extension/content.ts`
+- `extension/types.ts`
+- `extension/build.mjs`
+- `extension/icons/` (3 SVG icons)
+- `package.json` (`extension:build` / `extension:watch` scripts; `esbuild` + `@types/chrome` deps)
+- `src/components/room/HostDashboard.tsx`
 
 **Done when**
 
-- [ ] Load unpacked in `chrome://extensions`
-- [ ] Popup can join the current room
-- [ ] Host dashboard lists the extension as a device
-- [ ] Alt+S is registered (it can `console.log` for now)
+- [x] Load unpacked in `chrome://extensions` (run `npm run extension:build` first, then load the `extension/` folder)
+- [x] Popup can join the current room
+- [x] Host dashboard lists the extension as a device and shows Extension connected
+- [x] Alt+S is registered (logs to the service worker console)
 
 **Do not do in this step:** canvas capture yet.
 
 ---
 
-## Step 9 — Alt+S video frame capture
+## Step 9 — Alt+S video frame capture `[next]`
 
 **Goal:** In a YouTube (or any `<video>`) lecture, Alt+S grabs a clean frame — no browser chrome.
 
@@ -449,8 +466,8 @@ Only after the loop above is reliable:
 | 5 | Tablet feed shell | done |
 | 6 | QR pairing | done |
 | 7 | Drop/paste image → tablet | done |
-| 8 | Extension scaffold | next |
-| 9 | Alt+S canvas capture | todo |
+| 8 | Extension scaffold | done |
+| 9 | Alt+S canvas capture | next |
 | 10 | Copy / drag / auto-save | todo |
 | 11 | Folder watcher | todo |
 | 12 | Expiry & reconnect | todo |

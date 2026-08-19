@@ -57,6 +57,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
   }, [copied]);
 
   const tabletConnected = presence?.devices.some((device) => device.role === "tablet") ?? false;
+  const extensionConnected = presence?.devices.some((device) => device.role === "extension") ?? false;
   const deviceCount = presence?.deviceCount ?? 0;
   const devices = presence?.devices ?? [];
   const canSend = valid && status === "connected" && Boolean(presence) && !error && !serverDown;
@@ -78,9 +79,17 @@ export default function HostDashboard({ roomId, valid }: Props) {
     statusDetail = error.message;
     statusTone = "error";
   } else if (status === "connected" && presence) {
-    if (tabletConnected) {
+    if (tabletConnected && extensionConnected) {
+      statusTitle = "Ready · tablet + extension";
+      statusDetail = deviceLabel(deviceCount);
+      statusTone = "ok";
+    } else if (tabletConnected) {
       statusTitle = "Ready · tablet connected";
       statusDetail = deviceLabel(deviceCount);
+      statusTone = "ok";
+    } else if (extensionConnected) {
+      statusTitle = "Extension connected";
+      statusDetail = "Scan the QR to also pair a tablet";
       statusTone = "ok";
     } else {
       statusTitle = "Waiting for tablet";
