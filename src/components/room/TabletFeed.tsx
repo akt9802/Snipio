@@ -5,6 +5,7 @@ import Link from "next/link";
 import AutoSaveToggle from "@/components/room/AutoSaveToggle";
 import SlideCard from "@/components/room/SlideCard";
 import { BoltIcon } from "@/components/layout/icons";
+import { cueSlideReceived, downloadSlide, readAutoSave, writeAutoSave } from "@/lib/autoSave";
 import { useRoomSession } from "@/lib/useRoomSession";
 import type { SlidePayload } from "@/lib/roomEvents";
 import {
@@ -27,7 +28,18 @@ export default function TabletFeed({ roomId, valid }: Props) {
     valid,
   );
   const [slides, setSlides] = useState<Slide[]>([]);
+  const [autoSave, setAutoSave] = useState(false);
   const slidesRef = useRef<Slide[]>([]);
+  const autoSaveRef = useRef(false);
+  const savedIdsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    setAutoSave(readAutoSave());
+  }, []);
+
+  useEffect(() => {
+    autoSaveRef.current = autoSave;
+  }, [autoSave]);
 
   useEffect(() => {
     slidesRef.current = slides;
@@ -39,12 +51,20 @@ export default function TabletFeed({ roomId, valid }: Props) {
     function onReceived(payload: SlidePayload) {
       const slide = slideFromPayload(payload);
       if (!slide) return;
+
       setSlides((prev) => {
         for (const item of prev) {
           if (item.id === slide.id) revokeSlide(item);
         }
         return [slide, ...prev.filter((item) => item.id !== slide.id)];
       });
+
+      cueSlideReceived();
+
+      if (autoSaveRef.current && !savedIdsRef.current.has(slide.id)) {
+        savedIdsRef.current.add(slide.id);
+        downloadSlide(slide.blob, slideFileName(slide.mime, slide.createdAt));
+      }
     }
 
     return subscribeSlides(onReceived);
@@ -55,6 +75,11 @@ export default function TabletFeed({ roomId, valid }: Props) {
       for (const slide of slidesRef.current) revokeSlide(slide);
     };
   }, []);
+
+  function onAutoSaveChange(next: boolean) {
+    setAutoSave(next);
+    writeAutoSave(next);
+  }
 
   const roomMissing =
     error?.code === "unknown_room" || error?.code === "expired" || error?.code === "invalid_id";
@@ -143,7 +168,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
               {roomId}
             </p>
             <div className="ml-auto flex-shrink-0">
-              <AutoSaveToggle />
+              <AutoSaveToggle on={autoSave} onChange={onAutoSaveChange} />
             </div>
           </div>
         </div>
@@ -166,7 +191,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
         ) : error ? (
           <ErrorPanel title="Couldn’t join room" detail={error.message} />
         ) : slides.length === 0 ? (
-          <EmptyFeed connecting={!inRoom} />
+          <EmptyFeed connecting={!inRoom} autoSave={autoSave} />
         ) : (
           <ul className="flex flex-col gap-3">
             {slides.map((slide, index) => (
@@ -176,6 +201,8 @@ export default function TabletFeed({ roomId, valid }: Props) {
                   name={slideFileName(slide.mime, slide.createdAt)}
                   time={formatSlideTime(slide.createdAt)}
                   src={slide.objectUrl}
+                  mime={slide.mime}
+                  blob={slide.blob}
                 />
               </li>
             ))}
@@ -186,7 +213,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
   );
 }
 
-function EmptyFeed({ connecting }: { connecting: boolean }) {
+function EmptyFeed({ connecting, autoSave }: { connecting: boolean; autoSave: boolean }) {
   return (
     <div
       className="rounded-2xl px-5 py-14 text-center"
@@ -203,7 +230,11 @@ function EmptyFeed({ connecting }: { connecting: boolean }) {
         Drop or paste on the laptop, or press Alt+S and drag a region.
       </p>
       <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
-        {connecting ? "Connecting to the room…" : "New slides will show up here, newest first."}
+        {connecting
+          ? "Connecting to the room…"
+          : autoSave
+            ? "Auto-save is on — new slides download to this device."
+            : "Copy, drag into Notes, or turn on Auto-save."}
       </p>
     </div>
   );

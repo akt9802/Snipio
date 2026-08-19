@@ -332,33 +332,38 @@ extension/
 
 ---
 
-## Step 10 — Tablet actions: copy, drag, auto-save `[next]`
+## Step 10 — Tablet actions: copy, drag, auto-save `[done]`
 
 **Goal:** Once a slide is on the tablet, the student can get it into Samsung Notes without WhatsApp.
 
-**What to build**
+**What was built**
 
-1. **One-tap copy:** `navigator.clipboard.write` with a `ClipboardItem` of the image blob.
-2. **Drag and drop:** `SlideCard` is `draggable`; `dataTransfer` includes the image file / URL so Samsung Notes (or a notes PWA) can accept it in split-screen.
-3. **Auto-save toggle:** when ON, each new slide triggers a programmatic `<a download>` so Android puts it in Downloads / Gallery.
-4. Optional: light haptic/vibration + a short sound on receive.
-5. Zoom / full-screen preview on tap (so they can read a diagram before copying).
+- **Copy:** each card has a 44px Copy button. Uses `navigator.clipboard.write` + `ClipboardItem` of the image blob. Feedback: “Copied — paste into Notes” (or a download fallback if the browser blocks clipboard images).
+- **Drag:** the slide image is `draggable`. `dataTransfer` includes a `File`, `text/uri-list`, and Chrome `DownloadURL` so it can land in another tab, a desktop folder, or (on a real device) Notes in split-screen.
+- **Auto-save:** header toggle, persisted in `localStorage`. When ON, each *new* slide triggers a programmatic `<a download>` (browser may still ask once). Does not re-download the same slide.
+- **Preview:** tap the image for a full-screen view (Esc / tap outside / close). Copy and Save are available there so a diagram can be read before pasting.
+- **Receive cue:** short vibration + a quiet tick when a slide arrives (both optional if the browser blocks them).
 
 **Files**
 
-- `src/lib/autoSave.ts`
 - `src/lib/clipboard.ts`
-- Update `SlideCard.tsx`, `AutoSaveToggle.tsx`
+- `src/lib/autoSave.ts`
+- `src/components/room/SlideCard.tsx`
+- `src/components/room/AutoSaveToggle.tsx`
+- `src/components/room/TabletFeed.tsx`
+- `src/components/layout/icons.tsx` (`CloseIcon`)
 
 **Done when**
 
-- [ ] Tap copies image; paste works in a notes app
-- [ ] Auto-save ON downloads each new slide without a prompt loop (browser may still ask once)
-- [ ] Drag works at least to another browser tab / desktop folder; tablet Notes is the target to test on a real device
+- [x] Tap Copy; paste works in a notes app (clipboard image support varies by browser)
+- [x] Auto-save ON downloads each new slide without a prompt loop (browser may still ask once)
+- [x] Drag works at least to another browser tab / desktop folder; tablet Notes is the target to test on a real device
+
+**Do not do in this step:** OS screenshot folder watching (Step 11).
 
 ---
 
-## Step 11 — Folder watcher (OS screenshots)
+## Step 11 — Folder watcher (OS screenshots) `[next]`
 
 **Goal:** Native OS snips still flow into the room when the lecture is **not** in Chrome — VLC, Zoom desktop, PowerPoint, a second monitor. Step 9 already covers in-browser region capture (Alt+S). This step is the same crop-from-disk idea for **Cmd+Shift+4** / **Win+Shift+S** files the OS writes to a folder.
 
@@ -481,8 +486,8 @@ Only after the loop above is reliable:
 | 7 | Drop/paste image → tablet | done |
 | 8 | Extension scaffold | done |
 | 9 | Alt+S region screenshot | done |
-| 10 | Copy / drag / auto-save | next |
-| 11 | Folder watcher | todo |
+| 10 | Copy / drag / auto-save | done |
+| 11 | Folder watcher | next |
 | 12 | Expiry & reconnect | todo |
 | 13 | PWA | todo |
 | 14 | Room UI polish | todo |

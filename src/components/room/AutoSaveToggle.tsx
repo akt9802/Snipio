@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+type Props = {
+  on: boolean;
+  onChange: (on: boolean) => void;
+};
 
-export default function AutoSaveToggle() {
-  const [on, setOn] = useState(false);
-
+export default function AutoSaveToggle({ on, onChange }: Props) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
       aria-label="Auto-save incoming slides"
-      onClick={() => setOn((value) => !value)}
+      onClick={() => onChange(!on)}
       className="inline-flex items-center gap-2.5 min-h-11 px-3 rounded-xl cursor-pointer"
       style={{
         background: on ? "var(--success-soft)" : "var(--bg-surface)",
