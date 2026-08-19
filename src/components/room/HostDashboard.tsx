@@ -2,18 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CheckIcon,
   CopyIcon,
   ExtensionIcon,
+  LeaveIcon,
   MonitorIcon,
   PaperclipIcon,
   TabletIcon,
 } from "@/components/layout/icons";
 import FolderWatch from "@/components/room/FolderWatch";
 import JoinQr from "@/components/room/JoinQr";
+import RoomStatePanel from "@/components/room/RoomStatePanel";
 import { useRoomSession } from "@/lib/useRoomSession";
-import type { DeviceRole, RoomDevice, SlidePayload } from "@/lib/roomEvents";
+import {
+  isEndedRoomError,
+  ROOM_CLOSED_MESSAGE,
+  ROOM_ENDED_MESSAGE,
+  type DeviceRole,
+  type RoomDevice,
+  type SlidePayload,
+} from "@/lib/roomEvents";
 import {
   fileToSlidePayload,
   formatSlideTime,
@@ -49,12 +59,14 @@ function roleMeta(role: DeviceRole) {
 }
 
 export default function HostDashboard({ roomId, valid }: Props) {
-  const { status, presence, error, serverDown, sendSlide, subscribeSlides } = useRoomSession(
+  const { status, presence, error, serverDown, sendSlide, subscribeSlides, leaveRoom } = useRoomSession(
     roomId,
     "host",
     valid,
   );
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
@@ -66,20 +78,56 @@ export default function HostDashboard({ roomId, valid }: Props) {
   const extensionConnected = presence?.devices.some((device) => device.role === "extension") ?? false;
   const deviceCount = presence?.deviceCount ?? 0;
   const devices = presence?.devices ?? [];
-  const canSend = valid && status === "connected" && Boolean(presence) && !error && !serverDown;
+  const ended = status === "ended" || isEndedRoomError(error?.code);
+  const fatal = !valid || ended || error?.code === "unknown_room" || error?.code === "invalid_id";
+  const reconnecting = valid && !fatal && (status === "disconnected" || serverDown);
+  const canSend = valid && status === "connected" && Boolean(presence) && !error && !serverDown && !ended;
+
+  function onLeaveRoom() {
+    if (leaving) return;
+    setLeaving(true);
+    leaveRoom();
+    router.push("/");
+  }
+
+  if (fatal) {
+    const expired = error?.code === "expired" || (ended && error?.code !== "closed");
+    const closed = error?.code === "closed";
+    let title = "Invalid room code";
+    let detail = "Use a code like DBMS-4821, or create a new room.";
+    if (!valid) {
+      title = "Invalid room code";
+      detail = "Use a code like DBMS-4821, or create a new room.";
+    } else if (expired) {
+      title = ROOM_ENDED_MESSAGE;
+      detail = "Rooms expire after 3 hours idle. Start a new one on this laptop.";
+    } else if (closed) {
+      title = error?.message ?? ROOM_CLOSED_MESSAGE;
+      detail = "Create a new room to keep sending slides.";
+    } else if (error?.code === "unknown_room") {
+      title = "Room not found";
+      detail = error.message;
+    }
+
+    return (
+      <div className="page-wrap py-10 md:py-16 w-full max-w-xl">
+        <RoomStatePanel title={title} detail={detail} showCreate />
+      </div>
+    );
+  }
 
   let statusTitle = "Connecting…";
   let statusDetail = "Claiming this room";
   let statusTone: "wait" | "ok" | "error" = "wait";
 
-  if (!valid) {
-    statusTitle = "Invalid room code";
-    statusDetail = "Use a code like DBMS-4821";
+  if (serverDown) {
+    statusTitle = "Disconnected";
+    statusDetail = "Reconnecting — keep npm run dev running";
     statusTone = "error";
-  } else if (serverDown) {
-    statusTitle = "Room server offline";
-    statusDetail = "Keep npm run dev running";
-    statusTone = "error";
+  } else if (reconnecting) {
+    statusTitle = "Disconnected";
+    statusDetail = "Reconnecting if the server is up";
+    statusTone = "wait";
   } else if (error) {
     statusTitle = "Couldn’t stay in the room";
     statusDetail = error.message;
@@ -102,13 +150,14 @@ export default function HostDashboard({ roomId, valid }: Props) {
       statusDetail = "Scan the QR to pair";
       statusTone = "wait";
     }
-  } else if (status === "disconnected") {
-    statusTitle = "Disconnected";
-    statusDetail = "Reconnecting if the server is up";
+  } else if (status === "connecting") {
+    statusTitle = "Connecting…";
+    statusDetail = "Claiming this room";
   }
 
   const statusDot =
     statusTone === "ok" ? "var(--success)" : statusTone === "error" ? "var(--error)" : "var(--accent)";
+  const statusPulse = statusTone === "wait" && (status === "connecting" || reconnecting);
 
   async function copyCode() {
     try {
@@ -121,6 +170,23 @@ export default function HostDashboard({ roomId, valid }: Props) {
 
   return (
     <div className="page-wrap py-6 md:py-8 w-full">
+      {reconnecting ? (
+        <div
+          className="mb-4 rounded-xl px-4 py-3 text-sm"
+          style={{
+            background: serverDown ? "rgba(220, 53, 69, 0.06)" : "var(--accent-softer)",
+            border: serverDown ? "1px solid rgba(220, 53, 69, 0.28)" : "1px solid rgba(232, 100, 42, 0.28)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <p className="font-semibold">{serverDown ? "Can’t reach the room server" : "Disconnected"}</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            {serverDown
+              ? "Keep npm run dev running. This page will reconnect on its own."
+              : "Reconnecting — the room stays open if the server comes back."}
+          </p>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
         <aside className="anim-fade-up lg:sticky lg:top-24">
           <div
@@ -133,7 +199,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
           >
             <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid var(--bg-border)" }}>
               <span
-                className={status === "connecting" && statusTone === "wait" ? "dot-pulse" : ""}
+                className={statusPulse ? "dot-pulse" : ""}
                 style={{
                   width: 8,
                   height: 8,
@@ -217,7 +283,26 @@ export default function HostDashboard({ roomId, valid }: Props) {
               )}
             </div>
 
-            <div className="px-5 py-4" style={{ borderTop: "1px solid var(--bg-border)" }}>
+            <div className="px-5 py-4 flex flex-col gap-2" style={{ borderTop: "1px solid var(--bg-border)" }}>
+              <button
+                type="button"
+                onClick={onLeaveRoom}
+                disabled={leaving || status !== "connected" || !presence}
+                className="inline-flex items-center justify-center gap-2 min-h-10 rounded-xl text-sm font-medium cursor-pointer disabled:opacity-50"
+                style={{
+                  color: "var(--error)",
+                  background: "rgba(220, 53, 69, 0.06)",
+                  border: "1px solid rgba(220, 53, 69, 0.28)",
+                }}
+              >
+                <LeaveIcon className="w-4 h-4" />
+                {leaving ? "Leaving…" : "Leave room"}
+              </button>
+              <p className="text-[11px] text-center" style={{ color: "var(--text-muted)" }}>
+                {status === "connected" && presence
+                  ? "Closes this room for every tablet and extension."
+                  : "Reconnect to close the room for everyone."}
+              </p>
               <Link
                 href="/"
                 className="flex items-center justify-center min-h-10 rounded-xl text-sm font-medium"

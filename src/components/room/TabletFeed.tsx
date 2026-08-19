@@ -3,11 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AutoSaveToggle from "@/components/room/AutoSaveToggle";
+import RoomStatePanel from "@/components/room/RoomStatePanel";
 import SlideCard from "@/components/room/SlideCard";
 import { BoltIcon } from "@/components/layout/icons";
 import { cueSlideReceived, downloadSlide, readAutoSave, writeAutoSave } from "@/lib/autoSave";
 import { useRoomSession } from "@/lib/useRoomSession";
-import type { SlidePayload } from "@/lib/roomEvents";
+import {
+  isEndedRoomError,
+  ROOM_CLOSED_MESSAGE,
+  ROOM_ENDED_MESSAGE,
+  type SlidePayload,
+} from "@/lib/roomEvents";
 import {
   formatSlideTime,
   revokeSlide,
@@ -82,21 +88,36 @@ export default function TabletFeed({ roomId, valid }: Props) {
   }
 
   const roomMissing =
-    error?.code === "unknown_room" || error?.code === "expired" || error?.code === "invalid_id";
+    !valid ||
+    error?.code === "unknown_room" ||
+    error?.code === "invalid_id" ||
+    isEndedRoomError(error?.code) ||
+    status === "ended";
+  const roomFull = error?.code === "full";
+  const reconnecting = valid && !roomMissing && !roomFull && (status === "disconnected" || serverDown);
   const inRoom = valid && status === "connected" && Boolean(presence) && !error && !serverDown;
 
   let statusLabel = "Connecting";
   let statusColor = "var(--accent)";
   let pulse = true;
 
-  if (!valid || roomMissing) {
-    statusLabel = "Room not found";
+  if (roomMissing) {
+    statusLabel =
+      error?.code === "expired" ? "Room ended" : error?.code === "closed" ? "Room closed" : "Room not found";
+    statusColor = "var(--error)";
+    pulse = false;
+  } else if (roomFull) {
+    statusLabel = "Room full";
     statusColor = "var(--error)";
     pulse = false;
   } else if (serverDown) {
-    statusLabel = "Offline";
+    statusLabel = "Reconnecting";
     statusColor = "var(--error)";
-    pulse = false;
+    pulse = true;
+  } else if (reconnecting) {
+    statusLabel = "Reconnecting";
+    statusColor = "var(--accent)";
+    pulse = true;
   } else if (error) {
     statusLabel = "Error";
     statusColor = "var(--error)";
@@ -104,10 +125,6 @@ export default function TabletFeed({ roomId, valid }: Props) {
   } else if (inRoom) {
     statusLabel = "Connected";
     statusColor = "var(--success)";
-    pulse = false;
-  } else if (status === "disconnected") {
-    statusLabel = "Disconnected";
-    statusColor = "var(--text-muted)";
     pulse = false;
   }
 
@@ -175,38 +192,78 @@ export default function TabletFeed({ roomId, valid }: Props) {
       </header>
 
       <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5">
-        {!valid || roomMissing ? (
-          <ErrorPanel
-            title="Room not found — create one on the laptop."
+        {roomMissing ? (
+          <RoomStatePanel
+            title={
+              error?.code === "expired"
+                ? ROOM_ENDED_MESSAGE
+                : error?.code === "closed"
+                  ? (error.message || ROOM_CLOSED_MESSAGE)
+                  : "Room not found — create one on the laptop."
+            }
             detail={
-              error?.message ??
-              "This room isn’t active. Open Snipio on your laptop and create a room first."
+              error?.code === "expired"
+                ? "This room timed out. Open Snipio on the laptop and create a new one."
+                : error?.code === "closed"
+                  ? "Ask the host to create a new room, then join with the new code."
+                  : (error?.message ??
+                    "This room isn’t active. Open Snipio on your laptop and create a room first.")
             }
           />
-        ) : serverDown ? (
-          <ErrorPanel
-            title="Can’t reach the room server"
-            detail="The tablet loaded the page, but couldn’t join the room. Keep npm run dev running, stay on the same Wi‑Fi, and refresh this page."
+        ) : roomFull ? (
+          <RoomStatePanel
+            title="This room is full"
+            detail={error?.message ?? "At most two tablets can join. Ask the host to leave a device, or create a new room."}
           />
-        ) : error ? (
-          <ErrorPanel title="Couldn’t join room" detail={error.message} />
+        ) : reconnecting && slides.length === 0 ? (
+          <RoomStatePanel
+            tone="wait"
+            title={serverDown ? "Can’t reach the room server" : "Disconnected"}
+            detail={
+              serverDown
+                ? "Keep npm run dev running, stay on the same Wi‑Fi, and leave this page open — it will reconnect."
+                : "Reconnecting. Slides already on this tablet stay here; new ones arrive after you’re back."
+            }
+          />
+        ) : error && !inRoom ? (
+          <RoomStatePanel title="Couldn’t join room" detail={error.message} />
         ) : slides.length === 0 ? (
           <EmptyFeed connecting={!inRoom} autoSave={autoSave} />
         ) : (
-          <ul className="flex flex-col gap-3">
-            {slides.map((slide, index) => (
-              <li key={slide.id} className={index === 0 ? "anim-fade-up" : undefined}>
-                <SlideCard
-                  id={slide.id}
-                  name={slideFileName(slide.mime, slide.createdAt)}
-                  time={formatSlideTime(slide.createdAt)}
-                  src={slide.objectUrl}
-                  mime={slide.mime}
-                  blob={slide.blob}
-                />
-              </li>
-            ))}
-          </ul>
+          <>
+            {reconnecting ? (
+              <div
+                className="rounded-xl px-4 py-3 mb-4 text-sm"
+                style={{
+                  background: serverDown ? "rgba(220, 53, 69, 0.06)" : "var(--accent-softer)",
+                  border: serverDown
+                    ? "1px solid rgba(220, 53, 69, 0.28)"
+                    : "1px solid rgba(232, 100, 42, 0.28)",
+                }}
+              >
+                <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {serverDown ? "Can’t reach the room server" : "Disconnected"}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                  Reconnecting. Slides already here stay on this tablet.
+                </p>
+              </div>
+            ) : null}
+            <ul className="flex flex-col gap-3">
+              {slides.map((slide, index) => (
+                <li key={slide.id} className={index === 0 ? "anim-fade-up" : undefined}>
+                  <SlideCard
+                    id={slide.id}
+                    name={slideFileName(slide.mime, slide.createdAt)}
+                    time={formatSlideTime(slide.createdAt)}
+                    src={slide.objectUrl}
+                    mime={slide.mime}
+                    blob={slide.blob}
+                  />
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </main>
     </div>
@@ -236,31 +293,6 @@ function EmptyFeed({ connecting, autoSave }: { connecting: boolean; autoSave: bo
             ? "Auto-save is on — new slides download to this device."
             : "Copy, drag into Notes, or turn on Auto-save."}
       </p>
-    </div>
-  );
-}
-
-function ErrorPanel({ title, detail }: { title: string; detail: string }) {
-  return (
-    <div
-      className="rounded-2xl px-5 py-10 text-center"
-      style={{
-        background: "rgba(220, 53, 69, 0.06)",
-        border: "1px solid rgba(220, 53, 69, 0.28)",
-      }}
-    >
-      <p className="text-base font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
-        {title}
-      </p>
-      <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        {detail}
-      </p>
-      <Link
-        href="/"
-        className="btn-primary inline-flex items-center justify-center min-h-11 px-5 mt-6 rounded-xl text-sm font-semibold"
-      >
-        Back home
-      </Link>
     </div>
   );
 }

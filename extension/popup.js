@@ -28,6 +28,10 @@ function applyState(state) {
     statusDot.classList.add("connecting");
     statusText.classList.add("connecting");
     statusText.textContent = "Connecting\u2026";
+  } else if (status === "reconnecting") {
+    statusDot.classList.add("connecting");
+    statusText.classList.add("connecting");
+    statusText.textContent = roomId ? `Reconnecting \xB7 ${roomId}` : "Reconnecting\u2026";
   } else if (status === "connected") {
     statusDot.classList.add("connected");
     statusText.classList.add("connected");
@@ -39,16 +43,17 @@ function applyState(state) {
   } else {
     statusText.textContent = "Not connected";
   }
-  if (status === "connected") {
-    actionBtn.textContent = "Disconnect";
+  if (status === "connected" || status === "reconnecting" || status === "connecting") {
+    actionBtn.textContent = status === "connected" ? "Disconnect" : "Cancel";
     actionBtn.className = "btn btn-secondary";
     actionBtn.dataset.action = "disconnect";
+    actionBtn.disabled = false;
     if (roomId) roomInput.value = roomId;
   } else {
-    actionBtn.textContent = status === "connecting" ? "Connecting\u2026" : "Join Room";
+    actionBtn.textContent = "Join Room";
     actionBtn.className = "btn btn-primary";
     actionBtn.dataset.action = "join";
-    actionBtn.disabled = status === "connecting";
+    actionBtn.disabled = false;
   }
 }
 async function refreshUI() {

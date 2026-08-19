@@ -394,28 +394,45 @@ extension/
 
 ---
 
-## Step 12 — Room lifecycle and empty / error states `[next]`
+## Step 12 — Room lifecycle and empty / error states `[done]`
 
 **Goal:** Rooms feel temporary and the UI never looks “stuck”.
 
-**What to build**
+**What was built**
 
-1. Expire rooms after TTL; show “This room ended. Create a new one.”
-2. Host refresh: re-claim the same ID if it still exists, otherwise recreate.
-3. Tablet refresh: re-join; if gone, error + link home.
-4. Extension: if socket drops, auto-reconnect and show status in the popup.
-5. Max devices (optional): e.g. 1 host + 2 tablets + 1 extension.
-6. “Leave room” on host closes the room for everyone.
+- **TTL expiry:** rooms still expire 3 hours after last activity. Everyone in the room gets `room:error` `expired` and sees **“This room ended. Create a new one.”** Host can create a fresh room; tablet gets a home link.
+- **Host refresh:** `room:create` re-claims the same ID if it is still live (replaces a host in another tab). If the room is gone (TTL or server restart), the host recreates it.
+- **Tablet refresh:** re-joins. Unknown / expired / closed rooms show a clear panel + Back home. A few silent re-joins cover the race where the host is also reconnecting after a server restart.
+- **Reconnect:** web clients reconnect automatically. Killing the socket process shows **Disconnected / Reconnecting** (not a frozen empty feed). Host recreates the room on reconnect; tablet and extension re-join.
+- **Extension:** socket drops go to `reconnecting` in the popup (room code kept). Auto-reconnect is unlimited. Terminal errors (expired / closed / full / unknown after retries) stop and show the message. Join is restored after a service-worker restart.
+- **Max devices:** 1 host + 2 tablets + 1 extension. Extra tablets get `full`. A second extension replaces the previous one.
+- **Leave room** on the host emits `room:leave`, deletes the in-memory room, and kicks every device with **“The host left. This room is closed.”** Back home still leaves the room open until TTL (closing the tab does not delete it).
+
+**Files**
+
+- `server/socketServer.ts` (`room:leave`, close/expire, device caps, host/extension reclaim)
+- `src/lib/roomEvents.ts` (`closed`, max-device constants, ended helpers)
+- `src/lib/realtime.ts` (`room:leave`, reconnect options)
+- `src/lib/useRoomSession.ts` (ended status, reconnect, `leaveRoom`)
+- `src/components/room/RoomStatePanel.tsx`
+- `src/components/room/HostDashboard.tsx`
+- `src/components/room/TabletFeed.tsx`
+- `src/components/layout/icons.tsx` (`LeaveIcon`)
+- `extension/background.ts`
+- `extension/popup.ts`
+- `extension/types.ts`
 
 **Done when**
 
-- [ ] Expired / unknown rooms are obvious
-- [ ] Killing the server and restarting does not crash the UI (reconnect or “disconnected”)
-- [ ] Host leave kicks the tablet with a message
+- [x] Expired / unknown rooms are obvious
+- [x] Killing the server and restarting does not crash the UI (reconnect or “disconnected”)
+- [x] Host leave kicks the tablet with a message
+
+**Do not do in this step:** PWA / add-to-home-screen (Step 13).
 
 ---
 
-## Step 13 — PWA for the tablet
+## Step 13 — PWA for the tablet `[next]`
 
 **Goal:** “Add to Home Screen” so the receiver feels like an app in split-screen.
 
@@ -498,8 +515,8 @@ Only after the loop above is reliable:
 | 9 | Alt+S region screenshot | done |
 | 10 | Copy / drag / auto-save | done |
 | 11 | Folder watcher | done |
-| 12 | Expiry & reconnect | next |
-| 13 | PWA | todo |
+| 12 | Expiry & reconnect | done |
+| 13 | PWA | next |
 | 14 | Room UI polish | todo |
 | 15 | Deploy + real-device test | todo |
 
@@ -513,5 +530,6 @@ Only after the loop above is reliable:
 4. YouTube lecture → **Alt+S** → drag a rectangle around the slide only → **that crop** appears on the tablet (not the whole player).
 5. Tablet: copy → paste into Notes **or** drag card into Notes **or** auto-save and open Gallery.
 6. Optional: watch screenshot folder → an OS **Cmd+Shift+4 / Win+Shift+S** file also appears on the tablet.
+7. Optional: host **Leave room** → tablet shows “The host left. This room is closed.”
 
-If all six pass, the MVP is done.
+If the first six pass, the MVP loop works. Step 12 is the lifecycle around that loop.

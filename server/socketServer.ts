@@ -3,6 +3,10 @@ import { Server, type Socket } from "socket.io";
 import { isValidRoomId, normalizeRoomId } from "../src/lib/roomId";
 import {
   isValidSlidePayload,
+  MAX_EXTENSIONS_PER_ROOM,
+  MAX_TABLETS_PER_ROOM,
+  ROOM_CLOSED_MESSAGE,
+  ROOM_ENDED_MESSAGE,
   type DeviceRole,
   type PresencePayload,
   type RoomCreatePayload,
@@ -41,6 +45,7 @@ type SocketData = {
 type ClientToServerEvents = {
   "room:create": (payload: RoomCreatePayload) => void;
   "room:join": (payload: RoomJoinPayload) => void;
+  "room:leave": () => void;
   "slide:captured": (payload: SlidePayload) => void;
 };
 
@@ -104,20 +109,58 @@ function broadcastPresence(room: Room) {
   io.to(room.id).emit("room:presence", presenceOf(room));
 }
 
-function expireRoom(room: Room) {
-  for (const device of room.devices) {
+function countRole(room: Room, role: DeviceRole) {
+  return room.devices.filter((device) => device.role === role).length;
+}
+
+function detachSocket(socket: IoSocket) {
+  const roomId = socket.data.roomId;
+  socket.data.roomId = undefined;
+  socket.data.role = undefined;
+  if (roomId) void socket.leave(roomId);
+}
+
+function kickDevice(room: Room, socketId: string, error: RoomErrorPayload) {
+  const member = io.sockets.sockets.get(socketId);
+  room.devices = room.devices.filter((device) => device.id !== socketId);
+  if (room.hostSocketId === socketId) {
+    room.hostSocketId = room.devices.find((device) => device.role === "host")?.id;
+  }
+  if (!member) return;
+  member.emit("room:error", error);
+  detachSocket(member);
+}
+
+function closeRoom(room: Room, error: RoomErrorPayload, reason: string) {
+  for (const device of [...room.devices]) {
     const member = io.sockets.sockets.get(device.id);
     if (!member) continue;
-    member.emit("room:error", {
-      code: "expired",
-      message: "This room ended. Create a new one on the laptop.",
-    });
-    void member.leave(room.id);
-    member.data.roomId = undefined;
-    member.data.role = undefined;
+    member.emit("room:error", error);
+    detachSocket(member);
   }
   rooms.delete(room.id);
-  log(`expired ${room.id}`);
+  log(`${reason} ${room.id}`);
+}
+
+function expireRoom(room: Room) {
+  closeRoom(
+    room,
+    { code: "expired", message: ROOM_ENDED_MESSAGE },
+    "expired",
+  );
+}
+
+function reclaimRole(room: Room, role: DeviceRole, incomingId: string) {
+  const occupants = room.devices.filter((device) => device.role === role && device.id !== incomingId);
+  for (const occupant of occupants) {
+    kickDevice(room, occupant.id, {
+      code: "closed",
+      message:
+        role === "host"
+          ? "This room was reclaimed in another tab."
+          : "Another extension joined this room.",
+    });
+  }
 }
 
 function getLiveRoom(roomId: string): Room | undefined {
@@ -189,6 +232,7 @@ io.on("connection", (socket) => {
       rooms.set(roomId, room);
       log(`created ${roomId} host=${socket.id}`);
     } else {
+      reclaimRole(room, "host", socket.id);
       log(`claimed ${roomId} host=${socket.id}`);
     }
 
@@ -220,9 +264,36 @@ io.on("connection", (socket) => {
     leaveCurrentRoom(socket);
 
     const role: DeviceRole = payload?.role === "extension" ? "extension" : "tablet";
+
+    if (role === "tablet" && countRole(room, "tablet") >= MAX_TABLETS_PER_ROOM) {
+      log(`error full ${roomId} role=tablet socket=${socket.id}`);
+      emitError(socket, {
+        code: "full",
+        message: "This room is full — at most 2 tablets can join.",
+      });
+      return;
+    }
+
+    if (role === "extension" && countRole(room, "extension") >= MAX_EXTENSIONS_PER_ROOM) {
+      reclaimRole(room, "extension", socket.id);
+    }
+
     addDevice(room, socket, role);
     broadcastPresence(room);
     log(`join ${roomId} role=${role} socket=${socket.id} devices=${room.devices.length}`);
+  });
+
+  socket.on("room:leave", () => {
+    const roomId = socket.data.roomId;
+    if (!roomId || socket.data.role !== "host") return;
+
+    const room = rooms.get(roomId);
+    if (!room) {
+      detachSocket(socket);
+      return;
+    }
+
+    closeRoom(room, { code: "closed", message: ROOM_CLOSED_MESSAGE }, "closed");
   });
 
   socket.on("slide:captured", (payload) => {

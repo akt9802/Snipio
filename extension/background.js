@@ -3411,64 +3411,147 @@ Object.assign(lookup2, {
 var DEFAULT_SOCKET_URL = "http://localhost:3001";
 var MAX_SLIDE_BYTES = 5 * 1024 * 1024;
 var MAX_SLIDE_B64_CHARS = Math.ceil(MAX_SLIDE_BYTES * 4 / 3) + 64;
+var UNKNOWN_RETRY_LIMIT = 3;
 var socket = null;
 var state = { status: "idle", roomId: null };
 var snipGeneration = 0;
+var intended = null;
+var manualDisconnect = false;
+var unknownAttempts = 0;
+var unknownTimer = null;
+var hadPresence = false;
+var onReconnectAttempt = null;
 function setState(next) {
   state = next;
   chrome.storage.local.set({ extState: next });
   chrome.runtime.sendMessage({ type: "STATE_CHANGED" }).catch(() => {
   });
 }
+function clearUnknownTimer() {
+  if (unknownTimer) {
+    clearTimeout(unknownTimer);
+    unknownTimer = null;
+  }
+}
+function persistJoin(roomId, socketUrl) {
+  intended = { roomId, socketUrl };
+  chrome.storage.local.set({ joinedRoom: intended });
+}
+function clearJoin() {
+  intended = null;
+  chrome.storage.local.remove("joinedRoom");
+}
 function teardown() {
+  clearUnknownTimer();
   if (!socket) return;
+  if (onReconnectAttempt) {
+    socket.io.off("reconnect_attempt", onReconnectAttempt);
+    onReconnectAttempt = null;
+  }
   socket.removeAllListeners();
   socket.disconnect();
   socket = null;
 }
+function joinAsExtension(roomId) {
+  socket?.emit("room:join", { roomId, role: "extension" });
+}
 function connect(roomId, socketUrl) {
   teardown();
+  manualDisconnect = false;
+  unknownAttempts = 0;
+  hadPresence = false;
+  persistJoin(roomId, socketUrl);
   setState({ status: "connecting", roomId });
   socket = lookup2(socketUrl, {
     transports: ["websocket"],
     reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1e3
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 800,
+    reconnectionDelayMax: 5e3
   });
   socket.on("connect", () => {
-    socket.emit("room:join", { roomId, role: "extension" });
+    if (manualDisconnect || !intended) return;
+    unknownAttempts = 0;
+    if (state.status !== "connected") {
+      setState({ status: hadPresence ? "reconnecting" : "connecting", roomId });
+    }
+    joinAsExtension(roomId);
   });
+  onReconnectAttempt = () => {
+    if (manualDisconnect || !intended) return;
+    setState({ status: "reconnecting", roomId });
+  };
+  socket.io.on("reconnect_attempt", onReconnectAttempt);
   socket.on("room:presence", () => {
+    if (manualDisconnect || !intended) return;
+    unknownAttempts = 0;
+    hadPresence = true;
+    clearUnknownTimer();
     setState({ status: "connected", roomId });
   });
   socket.on("room:error", (payload) => {
+    if (manualDisconnect) return;
+    const code = payload.code;
+    if (code === "unknown_room") {
+      if (hadPresence) {
+        setState({ status: "reconnecting", roomId });
+        clearUnknownTimer();
+        unknownTimer = setTimeout(() => {
+          if (manualDisconnect || !socket?.connected || !intended) return;
+          joinAsExtension(roomId);
+        }, 1e3);
+        return;
+      }
+      unknownAttempts += 1;
+      setState({ status: "error", roomId, error: payload.message });
+      if (unknownAttempts <= UNKNOWN_RETRY_LIMIT) {
+        clearUnknownTimer();
+        unknownTimer = setTimeout(() => {
+          if (manualDisconnect || !socket?.connected || !intended) return;
+          joinAsExtension(roomId);
+        }, 600 * unknownAttempts);
+        return;
+      }
+      clearJoin();
+      teardown();
+      return;
+    }
     setState({ status: "error", roomId, error: payload.message });
-    teardown();
-  });
-  socket.on("disconnect", () => {
-    if (state.status === "connected") {
-      setState({ status: "idle", roomId: null });
+    if (code === "expired" || code === "closed" || code === "full" || code === "invalid_id") {
+      clearJoin();
+      teardown();
     }
   });
-  socket.on("connect_error", (err) => {
+  socket.on("disconnect", (reason) => {
+    if (manualDisconnect) return;
+    if (reason === "io client disconnect") return;
+    setState({ status: "reconnecting", roomId });
+  });
+  socket.on("connect_error", () => {
+    if (manualDisconnect || !intended) return;
     setState({
-      status: "error",
+      status: "reconnecting",
       roomId,
-      error: `Can't reach socket server \u2014 is npm run dev running? (${err.message})`
+      error: "Can\u2019t reach the room server \u2014 reconnecting\u2026"
     });
   });
 }
 function disconnect() {
+  manualDisconnect = true;
+  clearJoin();
   teardown();
   setState({ status: "idle", roomId: null });
 }
 function restoreConnection() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["extState", "socketUrl"], (result) => {
+    chrome.storage.local.get(["extState", "socketUrl", "joinedRoom"], (result) => {
+      const savedJoin = result.joinedRoom;
       const saved = result.extState;
-      const socketUrl = result.socketUrl ?? DEFAULT_SOCKET_URL;
-      if (saved?.status === "connected" && saved.roomId && !socket) {
-        connect(saved.roomId, socketUrl);
+      const socketUrl = savedJoin?.socketUrl ?? result.socketUrl ?? DEFAULT_SOCKET_URL;
+      const roomId = savedJoin?.roomId ?? saved?.roomId ?? null;
+      const shouldRestore = Boolean(roomId) && !socket && saved?.status !== "idle" && saved?.status !== "error";
+      if (roomId && (savedJoin || shouldRestore)) {
+        connect(roomId, socketUrl);
       }
       resolve();
     });
@@ -3525,10 +3608,14 @@ function emitCrop(message) {
 }
 async function handleCapture(tabFromCommand) {
   await booted;
-  if (state.status === "connecting") {
+  if (state.status === "connecting" || state.status === "reconnecting") {
     await waitForSocket(2500);
   }
   const tab = await resolveTab(tabFromCommand);
+  if (state.status === "reconnecting") {
+    await toastOnTab(tab, "Reconnecting to the room \u2014 try Alt+S again", "info");
+    return;
+  }
   if (state.status !== "connected" || !socket?.connected) {
     await toastOnTab(tab, "Join a room first", "info");
     return;

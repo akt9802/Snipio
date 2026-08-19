@@ -11,12 +11,23 @@ export type PresencePayload = {
   devices: RoomDevice[];
 };
 
-export type RoomErrorCode = "unknown_room" | "expired" | "full" | "invalid_id";
+export type RoomErrorCode = "unknown_room" | "expired" | "closed" | "full" | "invalid_id";
 
 export type RoomErrorPayload = {
   code: RoomErrorCode;
   message: string;
 };
+
+/** Soft cap so a leaked QR does not fill a lecture with random joiners. */
+export const MAX_TABLETS_PER_ROOM = 2;
+export const MAX_EXTENSIONS_PER_ROOM = 1;
+
+export const ROOM_ENDED_MESSAGE = "This room ended. Create a new one.";
+export const ROOM_CLOSED_MESSAGE = "The host left. This room is closed.";
+
+export function isEndedRoomError(code: RoomErrorCode | undefined): boolean {
+  return code === "expired" || code === "closed";
+}
 
 export type SlidePayload = {
   id: string;

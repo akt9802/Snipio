@@ -22,6 +22,7 @@ export type {
 export type ClientToServerEvents = {
   "room:create": (payload: RoomCreatePayload) => void;
   "room:join": (payload: RoomJoinPayload) => void;
+  "room:leave": () => void;
   "slide:captured": (payload: SlidePayload) => void;
 };
 
@@ -73,6 +74,10 @@ export function connect(): RealtimeSocket {
   return io(getSocketUrl(), {
     autoConnect: true,
     transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 800,
+    reconnectionDelayMax: 5000,
   });
 }
 
@@ -94,6 +99,12 @@ export function joinRoom(
 
 export function sendSlide(socket: RealtimeSocket, payload: SlidePayload) {
   socket.emit("slide:captured", payload);
+}
+
+/** Host-only: closes the room for every device. No-op if the socket is down. */
+export function leaveRoom(socket: RealtimeSocket) {
+  if (!socket.connected) return;
+  socket.emit("room:leave");
 }
 
 export function disconnect(socket: RealtimeSocket) {

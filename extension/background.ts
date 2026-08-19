@@ -6,10 +6,17 @@ import type { BackgroundMessage, ExtState, SnipSendResult, SnipToastKind } from 
 const DEFAULT_SOCKET_URL = "http://localhost:3001";
 const MAX_SLIDE_BYTES = 5 * 1024 * 1024;
 const MAX_SLIDE_B64_CHARS = Math.ceil((MAX_SLIDE_BYTES * 4) / 3) + 64;
+const UNKNOWN_RETRY_LIMIT = 3;
 
 let socket: Socket | null = null;
 let state: ExtState = { status: "idle", roomId: null };
 let snipGeneration = 0;
+let intended: { roomId: string; socketUrl: string } | null = null;
+let manualDisconnect = false;
+let unknownAttempts = 0;
+let unknownTimer: ReturnType<typeof setTimeout> | null = null;
+let hadPresence = false;
+let onReconnectAttempt: (() => void) | null = null;
 
 function setState(next: ExtState) {
   state = next;
@@ -17,64 +24,156 @@ function setState(next: ExtState) {
   chrome.runtime.sendMessage<BackgroundMessage>({ type: "STATE_CHANGED" }).catch(() => {});
 }
 
+function clearUnknownTimer() {
+  if (unknownTimer) {
+    clearTimeout(unknownTimer);
+    unknownTimer = null;
+  }
+}
+
+function persistJoin(roomId: string, socketUrl: string) {
+  intended = { roomId, socketUrl };
+  chrome.storage.local.set({ joinedRoom: intended });
+}
+
+function clearJoin() {
+  intended = null;
+  chrome.storage.local.remove("joinedRoom");
+}
+
 function teardown() {
+  clearUnknownTimer();
   if (!socket) return;
+  if (onReconnectAttempt) {
+    socket.io.off("reconnect_attempt", onReconnectAttempt);
+    onReconnectAttempt = null;
+  }
   socket.removeAllListeners();
   socket.disconnect();
   socket = null;
 }
 
+function joinAsExtension(roomId: string) {
+  socket?.emit("room:join", { roomId, role: "extension" });
+}
+
 function connect(roomId: string, socketUrl: string) {
   teardown();
+  manualDisconnect = false;
+  unknownAttempts = 0;
+  hadPresence = false;
+  persistJoin(roomId, socketUrl);
   setState({ status: "connecting", roomId });
 
   socket = io(socketUrl, {
     transports: ["websocket"],
     reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 800,
+    reconnectionDelayMax: 5000,
   });
 
   socket.on("connect", () => {
-    socket!.emit("room:join", { roomId, role: "extension" });
+    if (manualDisconnect || !intended) return;
+    unknownAttempts = 0;
+    if (state.status !== "connected") {
+      setState({ status: hadPresence ? "reconnecting" : "connecting", roomId });
+    }
+    joinAsExtension(roomId);
   });
 
+  onReconnectAttempt = () => {
+    if (manualDisconnect || !intended) return;
+    setState({ status: "reconnecting", roomId });
+  };
+  socket.io.on("reconnect_attempt", onReconnectAttempt);
+
   socket.on("room:presence", () => {
+    if (manualDisconnect || !intended) return;
+    unknownAttempts = 0;
+    hadPresence = true;
+    clearUnknownTimer();
     setState({ status: "connected", roomId });
   });
 
-  socket.on("room:error", (payload: { message: string }) => {
-    setState({ status: "error", roomId, error: payload.message });
-    teardown();
-  });
+  socket.on("room:error", (payload: { code?: string; message: string }) => {
+    if (manualDisconnect) return;
+    const code = payload.code;
 
-  socket.on("disconnect", () => {
-    if (state.status === "connected") {
-      setState({ status: "idle", roomId: null });
+    if (code === "unknown_room") {
+      if (hadPresence) {
+        setState({ status: "reconnecting", roomId });
+        clearUnknownTimer();
+        unknownTimer = setTimeout(() => {
+          if (manualDisconnect || !socket?.connected || !intended) return;
+          joinAsExtension(roomId);
+        }, 1000);
+        return;
+      }
+
+      unknownAttempts += 1;
+      setState({ status: "error", roomId, error: payload.message });
+      if (unknownAttempts <= UNKNOWN_RETRY_LIMIT) {
+        clearUnknownTimer();
+        unknownTimer = setTimeout(() => {
+          if (manualDisconnect || !socket?.connected || !intended) return;
+          joinAsExtension(roomId);
+        }, 600 * unknownAttempts);
+        return;
+      }
+      clearJoin();
+      teardown();
+      return;
+    }
+
+    setState({ status: "error", roomId, error: payload.message });
+    if (code === "expired" || code === "closed" || code === "full" || code === "invalid_id") {
+      clearJoin();
+      teardown();
     }
   });
 
-  socket.on("connect_error", (err: Error) => {
+  socket.on("disconnect", (reason) => {
+    if (manualDisconnect) return;
+    if (reason === "io client disconnect") return;
+    setState({ status: "reconnecting", roomId });
+  });
+
+  socket.on("connect_error", () => {
+    if (manualDisconnect || !intended) return;
     setState({
-      status: "error",
+      status: "reconnecting",
       roomId,
-      error: `Can't reach socket server — is npm run dev running? (${err.message})`,
+      error: "Can’t reach the room server — reconnecting…",
     });
   });
 }
 
 function disconnect() {
+  manualDisconnect = true;
+  clearJoin();
   teardown();
   setState({ status: "idle", roomId: null });
 }
 
 function restoreConnection(): Promise<void> {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["extState", "socketUrl"], (result) => {
+    chrome.storage.local.get(["extState", "socketUrl", "joinedRoom"], (result) => {
+      const savedJoin = result.joinedRoom as { roomId?: string; socketUrl?: string } | undefined;
       const saved = result.extState as ExtState | undefined;
-      const socketUrl = (result.socketUrl as string | undefined) ?? DEFAULT_SOCKET_URL;
-      if (saved?.status === "connected" && saved.roomId && !socket) {
-        connect(saved.roomId, socketUrl);
+      const socketUrl =
+        savedJoin?.socketUrl ??
+        (result.socketUrl as string | undefined) ??
+        DEFAULT_SOCKET_URL;
+      const roomId = savedJoin?.roomId ?? saved?.roomId ?? null;
+      const shouldRestore =
+        Boolean(roomId) &&
+        !socket &&
+        saved?.status !== "idle" &&
+        saved?.status !== "error";
+
+      if (roomId && (savedJoin || shouldRestore)) {
+        connect(roomId, socketUrl);
       }
       resolve();
     });
@@ -143,11 +242,16 @@ function emitCrop(
 
 async function handleCapture(tabFromCommand?: chrome.tabs.Tab) {
   await booted;
-  if (state.status === "connecting") {
+  if (state.status === "connecting" || state.status === "reconnecting") {
     await waitForSocket(2500);
   }
 
   const tab = await resolveTab(tabFromCommand);
+
+  if (state.status === "reconnecting") {
+    await toastOnTab(tab, "Reconnecting to the room — try Alt+S again", "info");
+    return;
+  }
 
   if (state.status !== "connected" || !socket?.connected) {
     await toastOnTab(tab, "Join a room first", "info");

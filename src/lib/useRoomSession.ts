@@ -6,13 +6,15 @@ import {
   createRoom,
   disconnect,
   joinRoom,
+  leaveRoom as emitLeaveRoom,
   sendSlide as emitCapturedSlide,
   type PresencePayload,
   type RoomErrorPayload,
   type SlidePayload,
 } from "@/lib/realtime";
+import { isEndedRoomError } from "@/lib/roomEvents";
 
-export type RoomSessionStatus = "connecting" | "connected" | "disconnected";
+export type RoomSessionStatus = "connecting" | "connected" | "disconnected" | "ended";
 
 export type RoomSession = {
   status: RoomSessionStatus;
@@ -21,7 +23,10 @@ export type RoomSession = {
   serverDown: boolean;
   sendSlide: (payload: SlidePayload) => boolean;
   subscribeSlides: (handler: (payload: SlidePayload) => void) => () => void;
+  leaveRoom: () => void;
 };
+
+const UNKNOWN_RETRY_LIMIT = 3;
 
 export function useRoomSession(
   roomId: string,
@@ -33,35 +38,85 @@ export function useRoomSession(
   const [error, setError] = useState<RoomErrorPayload | null>(null);
   const [serverDown, setServerDown] = useState(false);
   const socketRef = useRef<ReturnType<typeof connect> | null>(null);
+  const endedRef = useRef(false);
+  const unknownAttemptsRef = useRef(0);
+  const retryTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
 
+    endedRef.current = false;
+    unknownAttemptsRef.current = 0;
+
     const socket = connect();
     socketRef.current = socket;
 
+    function clearRetry() {
+      if (retryTimerRef.current != null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    }
+
     function enter() {
+      if (endedRef.current) return;
       setStatus("connected");
       setServerDown(false);
+      unknownAttemptsRef.current = 0;
       if (role === "host") createRoom(socket, roomId);
       else joinRoom(socket, roomId, "tablet");
     }
 
     function onPresence(payload: PresencePayload) {
       if (payload.roomId !== roomId) return;
+      if (endedRef.current) return;
+      unknownAttemptsRef.current = 0;
+      clearRetry();
       setPresence(payload);
       setError(null);
+      setStatus("connected");
+      setServerDown(false);
     }
 
     function onError(payload: RoomErrorPayload) {
+      if (endedRef.current && !isEndedRoomError(payload.code)) return;
+
+      if (isEndedRoomError(payload.code)) {
+        clearRetry();
+        endedRef.current = true;
+        setError(payload);
+        setPresence(null);
+        setStatus("ended");
+        return;
+      }
+
       setError(payload);
+      setPresence(null);
+
+      if (
+        payload.code === "unknown_room" &&
+        role === "tablet" &&
+        unknownAttemptsRef.current < UNKNOWN_RETRY_LIMIT
+      ) {
+        unknownAttemptsRef.current += 1;
+        const delay = 600 * unknownAttemptsRef.current;
+        clearRetry();
+        retryTimerRef.current = window.setTimeout(() => {
+          if (endedRef.current) return;
+          const live = socketRef.current;
+          if (live?.connected) joinRoom(live, roomId, "tablet");
+        }, delay);
+      }
     }
 
     function onDisconnect() {
+      if (endedRef.current) return;
       setStatus("disconnected");
+      setPresence(null);
     }
 
     function onConnectError() {
+      if (endedRef.current) return;
       setServerDown(true);
       setStatus("disconnected");
     }
@@ -75,6 +130,7 @@ export function useRoomSession(
     if (socket.connected) enter();
 
     return () => {
+      clearRetry();
       socketRef.current = null;
       socket.off("connect", enter);
       socket.off("room:presence", onPresence);
@@ -87,7 +143,7 @@ export function useRoomSession(
 
   const sendSlide = useCallback((payload: SlidePayload) => {
     const socket = socketRef.current;
-    if (!socket?.connected) return false;
+    if (!socket?.connected || endedRef.current) return false;
     emitCapturedSlide(socket, payload);
     return true;
   }, []);
@@ -101,5 +157,11 @@ export function useRoomSession(
     };
   }, []);
 
-  return { status, presence, error, serverDown, sendSlide, subscribeSlides };
+  const leaveRoom = useCallback(() => {
+    endedRef.current = true;
+    const socket = socketRef.current;
+    if (socket) emitLeaveRoom(socket);
+  }, []);
+
+  return { status, presence, error, serverDown, sendSlide, subscribeSlides, leaveRoom };
 }

@@ -1,4 +1,4 @@
-export type ExtStatus = "idle" | "connecting" | "connected" | "error";
+export type ExtStatus = "idle" | "connecting" | "reconnecting" | "connected" | "error";
 
 export type ExtState = {
   status: ExtStatus;
