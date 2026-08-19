@@ -5,7 +5,7 @@ Build the app in this order. Each step is a small, working slice. Do not skip ah
 **Core loop we are building:**
 
 ```text
-Create room → Join on tablet → Connect extension → Alt+S → Slide appears on tablet → Drag into notes
+Create room → Join on tablet → Connect extension → Alt+S → drag a region → that crop appears on tablet → Drag into notes
 ```
 
 Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solution.md) · [System Architecture](./System-Architecture.md)
@@ -255,7 +255,7 @@ This is the first “magic” moment. Get this solid before the extension.
 
 - `manifest.json`: Manifest V3, `action` popup, `commands` with `Alt+S` keybinding, `host_permissions` for `localhost` and LAN IPs, `activeTab` and `storage` permissions.
 - Popup (`popup.ts`): room code input with auto-formatting, Join / Disconnect toggle, live status indicator (idle / connecting / connected / error), advanced section to override the socket server URL. State persisted via `chrome.storage.local`.
-- Background service worker (`background.ts`): connects to Socket.io server with `transports: ['websocket']`, joins as `role: extension`, handles `room:presence` / `room:error` / `disconnect`. Notifies popup on state changes. Listens for `Alt+S` via `chrome.commands` — logs for now; full capture in Step 9. Restores connection on browser startup.
+- Background service worker (`background.ts`): connects to Socket.io server with `transports: ['websocket']`, joins as `role: extension`, handles `room:presence` / `room:error` / `disconnect`. Notifies popup on state changes. Listens for `Alt+S` via `chrome.commands` — logs for now; region snip in Step 9. Restores connection on browser startup.
 - Host dashboard updated: shows `Extension connected` / `Ready · tablet + extension` when an extension device appears in presence.
 - Build: `npm run extension:build` (one-shot) or `npm run extension:watch` (auto-rebuild). `esbuild` and `@types/chrome` added as dev dependencies.
 
@@ -267,7 +267,7 @@ extension/
   popup.html
   popup.ts / popup.js (built)
   background.ts / background.js (built — includes socket.io-client bundle)
-  content.ts / content.js (built — placeholder for step 9)
+  content.ts / content.js (built — placeholder for step 9 region snip)
   types.ts
   build.mjs
   icons/icon16.svg, icon48.svg, icon128.svg
@@ -293,29 +293,48 @@ extension/
 - [x] Host dashboard lists the extension as a device and shows Extension connected
 - [x] Alt+S is registered (logs to the service worker console)
 
-**Do not do in this step:** canvas capture yet.
+**Do not do in this step:** region selection overlay yet.
 
 ---
 
-## Step 9 — Alt+S video frame capture `[next]`
+## Step 9 — Alt+S region screenshot `[next]`
 
-**Goal:** In a YouTube (or any `<video>`) lecture, Alt+S grabs a clean frame — no browser chrome.
+**Goal:** Alt+S works like macOS **Cmd+Shift+4** / Windows **Win+Shift+S**: the user drags a rectangle, and **only that cropped region** is sent to the tablet. Do not grab the whole YouTube video frame, the whole tab, or any `<video>` canvas dump.
+
+**Why this instead of a video frame:** a lecture slide is usually one rectangle on screen (the slide, a diagram, a formula). Sending the full player — talking head, YouTube chrome, related videos — wastes the tablet and the notes app. A snip is what students already know.
 
 **What to build**
 
-1. Content script finds the largest playing `<video>`.
-2. Draw `video` → `<canvas>` at native resolution.
-3. `canvas.toBlob('image/png')` (or jpeg at high quality).
-4. Send blob to the background worker (`chrome.runtime.sendMessage`).
-5. Background emits `slide:captured` on the existing socket.
-6. Fallback if no video: `chrome.tabs.captureVisibleTab` (full tab — worse quality, but better than nothing).
-7. Tiny toast on the page: “Sent to tablet” / “No video found”.
+1. **Hotkey:** `Alt+S` (already in the extension) starts a snip. If the extension is not connected to a room, toast “Join a room first” and stop.
+2. **Freeze, then select (do not snip a live moving video):**
+   - Background: `chrome.tabs.captureVisibleTab` → PNG of the current tab.
+   - Content script: full-viewport overlay on top of the page. Show that captured bitmap as the backdrop (so the lecture is frozen). Dim everything; cursor = crosshair.
+3. **Drag to select:** mousedown → drag → mouseup draws a rectangle. Show a thin marching-ants / accent border and optional `W × H` label. **Esc** or a second `Alt+S` cancels with no send.
+4. **Crop only the selection:** map the rectangle from CSS pixels to the bitmap (account for `devicePixelRatio` / capture scale). Draw that sub-rect to a canvas → `toBlob('image/png')`. If the rect is tiny (e.g. under 8×8 CSS px), ignore it.
+5. **Send the crop, not the full tab:** content script posts the blob (or base64) to the background worker → existing `slide:captured` socket path from Step 7. Never emit the uncropped `captureVisibleTab` image.
+6. **Toast:** “Sent to tablet” on success, “Cancelled” on Esc, a short error if capture/permission fails.
+7. **Repeat:** each Alt+S is a new snip. Overlay must tear down cleanly so the next press works (including YouTube fullscreen — inject into the fullscreen element if needed).
+
+**Do not do in this step**
+
+- Do not find a `<video>` and `drawImage(video)` — that is the old plan and it is wrong for this product.
+- Do not send the full visible tab “as a fallback”.
+- Do not use OS screenshot APIs / folder watching (that is Step 11, for apps *outside* Chrome).
+
+**Files**
+
+- `extension/content.ts` — overlay, drag-select, crop, toast
+- `extension/background.ts` — `captureVisibleTab`, receive crop, `slide:captured`
+- `extension/manifest.json` — permissions for tab capture if missing (`activeTab` + host access for the lecture origin)
+- `extension/types.ts` — message types (`SNIP_START`, `SNIP_CAPTURED`, …)
 
 **Done when**
 
-- [ ] YouTube lecture, Alt+S, tablet shows the exact current frame
-- [ ] Image has no YouTube controls overlay when the video element is used
-- [ ] Pressing Alt+S repeatedly sends multiple slides in order
+- [ ] YouTube (or any tab): Alt+S → crosshair overlay on a frozen screenshot
+- [ ] Drag a region around *just the slide* → tablet shows **only that crop**, not the whole player
+- [ ] Esc cancels; nothing appears on the tablet
+- [ ] Pressing Alt+S repeatedly sends multiple crops in order
+- [ ] Full-tab image is never sent; video-element capture is not used
 
 ---
 
@@ -347,22 +366,22 @@ extension/
 
 ## Step 11 — Folder watcher (OS screenshots)
 
-**Goal:** Cmd+Shift+4 / Win+Shift+S also flow into the room, for VLC / Zoom / anything outside the browser.
+**Goal:** Native OS snips still flow into the room when the lecture is **not** in Chrome — VLC, Zoom desktop, PowerPoint, a second monitor. Step 9 already covers in-browser region capture (Alt+S). This step is the same crop-from-disk idea for **Cmd+Shift+4** / **Win+Shift+S** files the OS writes to a folder.
 
 **What to build**
 
 1. On the host dashboard, “Watch screenshot folder”.
 2. Use the **File System Access API** (`showDirectoryPicker` + periodic `dir.entries()` or `FileSystemObserver` where available).
-3. Detect new `png/jpg/webp` files (ignore already-seen names).
-4. Read file → same `slide:captured` path as dropzone.
-5. Explain in UI: “Choose Desktop or the folder your OS saves screenshots to.”
-6. This only runs while the host tab is open — that is acceptable for MVP.
+3. Detect new `png/jpg/webp` files (ignore already-seen names). OS region snips are already cropped — send the file as-is (same `slide:captured` path as the dropzone).
+4. Explain in UI: “Choose Desktop or the folder your OS saves screenshots to. Use this for apps outside Chrome; use Alt+S in the lecture tab.”
+5. This only runs while the host tab is open — that is acceptable for MVP.
 
 **Done when**
 
 - [ ] User grants a folder once per session
-- [ ] A new screenshot file in that folder appears on the tablet without drag-drop
+- [ ] A new OS screenshot file in that folder appears on the tablet without drag-drop
 - [ ] Duplicate events for the same file do not spam the feed
+- [ ] This path does not replace Alt+S region snip (Step 9) — both work
 
 ---
 
@@ -438,7 +457,7 @@ extension/
 
 **Done when**
 
-- [ ] Phone scans production QR, joins, receives an Alt+S frame
+- [ ] Phone scans production QR, joins, receives an Alt+S region snip
 - [ ] No `localhost` left in QR or extension config for the production build
 
 ---
@@ -467,7 +486,7 @@ Only after the loop above is reliable:
 | 6 | QR pairing | done |
 | 7 | Drop/paste image → tablet | done |
 | 8 | Extension scaffold | done |
-| 9 | Alt+S canvas capture | next |
+| 9 | Alt+S region screenshot | next |
 | 10 | Copy / drag / auto-save | todo |
 | 11 | Folder watcher | todo |
 | 12 | Expiry & reconnect | todo |
@@ -482,8 +501,8 @@ Only after the loop above is reliable:
 1. Laptop: open Snipio → Create room.
 2. Tablet: scan QR (or type code) → feed says connected.
 3. Chrome: load extension → join the same room code.
-4. YouTube lecture → **Alt+S** → slide appears on tablet.
+4. YouTube lecture → **Alt+S** → drag a rectangle around the slide only → **that crop** appears on the tablet (not the whole player).
 5. Tablet: copy → paste into Notes **or** drag card into Notes **or** auto-save and open Gallery.
-6. Optional: watch screenshot folder → OS screenshot also appears on tablet.
+6. Optional: watch screenshot folder → an OS **Cmd+Shift+4 / Win+Shift+S** file also appears on the tablet.
 
 If all six pass, the MVP is done.
