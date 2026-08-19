@@ -267,7 +267,7 @@ extension/
   popup.html
   popup.ts / popup.js (built)
   background.ts / background.js (built — includes socket.io-client bundle)
-  content.ts / content.js (built — placeholder for step 9 region snip)
+  content.ts / content.js (built — region snip overlay)
   types.ts
   build.mjs
   icons/icon16.svg, icon48.svg, icon128.svg
@@ -297,48 +297,42 @@ extension/
 
 ---
 
-## Step 9 — Alt+S region screenshot `[next]`
+## Step 9 — Alt+S region screenshot `[done]`
 
 **Goal:** Alt+S works like macOS **Cmd+Shift+4** / Windows **Win+Shift+S**: the user drags a rectangle, and **only that cropped region** is sent to the tablet. Do not grab the whole YouTube video frame, the whole tab, or any `<video>` canvas dump.
 
-**Why this instead of a video frame:** a lecture slide is usually one rectangle on screen (the slide, a diagram, a formula). Sending the full player — talking head, YouTube chrome, related videos — wastes the tablet and the notes app. A snip is what students already know.
+**What was built**
 
-**What to build**
-
-1. **Hotkey:** `Alt+S` (already in the extension) starts a snip. If the extension is not connected to a room, toast “Join a room first” and stop.
-2. **Freeze, then select (do not snip a live moving video):**
-   - Background: `chrome.tabs.captureVisibleTab` → PNG of the current tab.
-   - Content script: full-viewport overlay on top of the page. Show that captured bitmap as the backdrop (so the lecture is frozen). Dim everything; cursor = crosshair.
-3. **Drag to select:** mousedown → drag → mouseup draws a rectangle. Show a thin marching-ants / accent border and optional `W × H` label. **Esc** or a second `Alt+S` cancels with no send.
-4. **Crop only the selection:** map the rectangle from CSS pixels to the bitmap (account for `devicePixelRatio` / capture scale). Draw that sub-rect to a canvas → `toBlob('image/png')`. If the rect is tiny (e.g. under 8×8 CSS px), ignore it.
-5. **Send the crop, not the full tab:** content script posts the blob (or base64) to the background worker → existing `slide:captured` socket path from Step 7. Never emit the uncropped `captureVisibleTab` image.
-6. **Toast:** “Sent to tablet” on success, “Cancelled” on Esc, a short error if capture/permission fails.
-7. **Repeat:** each Alt+S is a new snip. Overlay must tear down cleanly so the next press works (including YouTube fullscreen — inject into the fullscreen element if needed).
-
-**Do not do in this step**
-
-- Do not find a `<video>` and `drawImage(video)` — that is the old plan and it is wrong for this product.
-- Do not send the full visible tab “as a fallback”.
-- Do not use OS screenshot APIs / folder watching (that is Step 11, for apps *outside* Chrome).
+- `Alt+S` starts a snip. If the extension is not in a room, an in-page toast says “Join a room first”.
+- Background captures the current tab (`chrome.tabs.captureVisibleTab`, PNG), then the content script shows that bitmap as a frozen overlay (crosshair, dim, “Drag to select · Esc to cancel”). Overlay mounts on `document.fullscreenElement` when YouTube is fullscreen.
+- Drag to select a rectangle (accent border + `W × H` label). Mouse-up crops **only that region** (CSS px mapped to the capture bitmap, including retina scale). Selections under 8×8 CSS px are ignored.
+- Cropped PNG is sent on the existing `slide:captured` socket path. The uncropped tab image is never emitted. No `<video>` canvas grab.
+- Toasts: “Sent to tablet”, “Cancelled” (Esc), and short errors if capture/send fails.
+- A second `Alt+S` hides the current overlay, recaptures, and starts a fresh snip. Service worker restores the socket on wake so Alt+S still works after idle.
+- Manifest: `scripting` + `https://*/*` host permission so YouTube/Udemy can be captured; content script injected on demand if the tab was open before the extension loaded.
 
 **Files**
 
 - `extension/content.ts` — overlay, drag-select, crop, toast
 - `extension/background.ts` — `captureVisibleTab`, receive crop, `slide:captured`
-- `extension/manifest.json` — permissions for tab capture if missing (`activeTab` + host access for the lecture origin)
-- `extension/types.ts` — message types (`SNIP_START`, `SNIP_CAPTURED`, …)
+- `extension/manifest.json` — `scripting`, `https://*/*`, updated command description
+- `extension/types.ts` — `SNIP_PING` / `SNIP_HIDE` / `SNIP_START` / `SNIP_CAPTURED` / `SNIP_TOAST`
+- `extension/popup.html` — hint text
+- `extension/build.mjs` — content script bundled as IIFE
 
 **Done when**
 
-- [ ] YouTube (or any tab): Alt+S → crosshair overlay on a frozen screenshot
-- [ ] Drag a region around *just the slide* → tablet shows **only that crop**, not the whole player
-- [ ] Esc cancels; nothing appears on the tablet
-- [ ] Pressing Alt+S repeatedly sends multiple crops in order
-- [ ] Full-tab image is never sent; video-element capture is not used
+- [x] YouTube (or any tab): Alt+S → crosshair overlay on a frozen screenshot
+- [x] Drag a region around *just the slide* → tablet shows **only that crop**, not the whole player
+- [x] Esc cancels; nothing appears on the tablet
+- [x] Pressing Alt+S repeatedly sends multiple crops in order
+- [x] Full-tab image is never sent; video-element capture is not used
+
+**Do not do in this step:** tablet copy / drag / auto-save (Step 10), or OS folder watching (Step 11).
 
 ---
 
-## Step 10 — Tablet actions: copy, drag, auto-save
+## Step 10 — Tablet actions: copy, drag, auto-save `[next]`
 
 **Goal:** Once a slide is on the tablet, the student can get it into Samsung Notes without WhatsApp.
 
@@ -486,8 +480,8 @@ Only after the loop above is reliable:
 | 6 | QR pairing | done |
 | 7 | Drop/paste image → tablet | done |
 | 8 | Extension scaffold | done |
-| 9 | Alt+S region screenshot | next |
-| 10 | Copy / drag / auto-save | todo |
+| 9 | Alt+S region screenshot | done |
+| 10 | Copy / drag / auto-save | next |
 | 11 | Folder watcher | todo |
 | 12 | Expiry & reconnect | todo |
 | 13 | PWA | todo |

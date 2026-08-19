@@ -22,6 +22,7 @@ import {
   revokeSlide,
   slideFileName,
   slideFromLocalFile,
+  slideFromPayload,
   slideReadMessage,
   validateSlideFile,
   type Slide,
@@ -47,7 +48,11 @@ function roleMeta(role: DeviceRole) {
 }
 
 export default function HostDashboard({ roomId, valid }: Props) {
-  const { status, presence, error, serverDown, sendSlide } = useRoomSession(roomId, "host", valid);
+  const { status, presence, error, serverDown, sendSlide, subscribeSlides } = useRoomSession(
+    roomId,
+    "host",
+    valid,
+  );
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -228,7 +233,12 @@ export default function HostDashboard({ roomId, valid }: Props) {
         </aside>
 
         <div className="min-w-0 anim-fade-up delay-1">
-          <HostDropzone sendSlide={sendSlide} canSend={canSend} />
+          <HostDropzone
+            sendSlide={sendSlide}
+            subscribeSlides={subscribeSlides}
+            canSend={canSend}
+            listening={status === "connected"}
+          />
         </div>
       </div>
     </div>
@@ -244,10 +254,14 @@ type DropState =
 
 function HostDropzone({
   sendSlide,
+  subscribeSlides,
   canSend,
+  listening,
 }: {
   sendSlide: (payload: SlidePayload) => boolean;
+  subscribeSlides: (handler: (payload: SlidePayload) => void) => () => void;
   canSend: boolean;
+  listening: boolean;
 }) {
   const [state, setState] = useState<DropState>({ kind: "idle" });
   const [sentSlides, setSentSlides] = useState<Slide[]>([]);
@@ -265,6 +279,24 @@ function HostDropzone({
   useEffect(() => {
     sentSlidesRef.current = sentSlides;
   }, [sentSlides]);
+
+  useEffect(() => {
+    if (!listening) return;
+
+    function onReceived(payload: SlidePayload) {
+      const slide = slideFromPayload(payload);
+      if (!slide) return;
+      setSentSlides((prev) => {
+        if (prev.some((item) => item.id === slide.id)) {
+          revokeSlide(slide);
+          return prev;
+        }
+        return [slide, ...prev];
+      });
+    }
+
+    return subscribeSlides(onReceived);
+  }, [listening, subscribeSlides]);
 
   useEffect(() => {
     return () => {
@@ -525,7 +557,7 @@ function HostDropzone({
               className="text-[10px] font-medium uppercase tracking-[0.14em]"
               style={{ color: "var(--text-muted)" }}
             >
-              Sent this session
+              This session
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
               {sentCount === 1 ? "1 slide" : `${sentCount} slides`} · newest first
@@ -570,7 +602,7 @@ function EmptyRoom() {
         Your room is empty
       </p>
       <p className="text-sm mt-1.5 max-w-sm mx-auto" style={{ color: "var(--text-muted)" }}>
-        Send from this laptop — or pair a tablet and drop a screenshot to see it there instantly.
+        Drop a screenshot here, or press Alt+S in the lecture tab. The crop shows here and on the tablet.
       </p>
     </div>
   );
@@ -601,7 +633,7 @@ function SentSlideThumb({ slide, newest }: { slide: Slide; newest: boolean }) {
           {name}
         </p>
         <p className="text-[10px] mt-0.5 code-font" style={{ color: newest ? "var(--success)" : "var(--text-muted)" }}>
-          {newest ? `Just sent · ${time}` : time}
+          {newest ? `Just now · ${time}` : time}
         </p>
       </div>
     </article>

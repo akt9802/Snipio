@@ -200,7 +200,7 @@ function EmptyFeed({ connecting }: { connecting: boolean }) {
         Waiting for slides.
       </p>
       <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        Drop or paste a screenshot on the laptop.
+        Drop or paste on the laptop, or press Alt+S and drag a region.
       </p>
       <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
         {connecting ? "Connecting to the room…" : "New slides will show up here, newest first."}

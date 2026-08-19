@@ -50,6 +50,7 @@ const configs = [
   },
   {
     ...shared,
+    format: /** @type {"iife"} */ ("iife"),
     entryPoints: [join(__dirname, "content.ts")],
     outfile: join(__dirname, "content.js"),
   },

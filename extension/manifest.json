@@ -23,7 +23,7 @@
         "default": "Alt+S",
         "mac": "Alt+S"
       },
-      "description": "Capture current slide and send to tablet"
+      "description": "Select a region and send it to your tablet"
     }
   },
   "background": {
@@ -32,15 +32,14 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
-    "http://localhost/*",
-    "http://127.0.0.1/*",
-    "http://*/*"
+    "http://*/*",
+    "https://*/*"
   ]
 }

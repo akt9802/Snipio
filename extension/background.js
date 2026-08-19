@@ -617,7 +617,7 @@ var Polling = class extends Transport {
    */
   pause(onPause) {
     this.readyState = "pausing";
-    const pause = () => {
+    const pause2 = () => {
       this.readyState = "paused";
       onPause();
     };
@@ -626,17 +626,17 @@ var Polling = class extends Transport {
       if (this._polling) {
         total++;
         this.once("pollComplete", function() {
-          --total || pause();
+          --total || pause2();
         });
       }
       if (!this.writable) {
         total++;
         this.once("drain", function() {
-          --total || pause();
+          --total || pause2();
         });
       }
     } else {
-      pause();
+      pause2();
     }
   }
   /**
@@ -3408,8 +3408,12 @@ Object.assign(lookup2, {
 });
 
 // extension/background.ts
+var DEFAULT_SOCKET_URL = "http://localhost:3001";
+var MAX_SLIDE_BYTES = 5 * 1024 * 1024;
+var MAX_SLIDE_B64_CHARS = Math.ceil(MAX_SLIDE_BYTES * 4 / 3) + 64;
 var socket = null;
 var state = { status: "idle", roomId: null };
+var snipGeneration = 0;
 function setState(next) {
   state = next;
   chrome.storage.local.set({ extState: next });
@@ -3458,6 +3462,22 @@ function disconnect() {
   teardown();
   setState({ status: "idle", roomId: null });
 }
+function restoreConnection() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["extState", "socketUrl"], (result) => {
+      const saved = result.extState;
+      const socketUrl = result.socketUrl ?? DEFAULT_SOCKET_URL;
+      if (saved?.status === "connected" && saved.roomId && !socket) {
+        connect(saved.roomId, socketUrl);
+      }
+      resolve();
+    });
+  });
+}
+var booted = restoreConnection();
+chrome.runtime.onStartup.addListener(() => {
+  void restoreConnection();
+});
 chrome.runtime.onMessage.addListener(
   (message, _sender, sendResponse) => {
     if (message.type === "GET_STATE") {
@@ -3465,8 +3485,7 @@ chrome.runtime.onMessage.addListener(
       return false;
     }
     if (message.type === "JOIN") {
-      const { roomId, socketUrl } = message;
-      connect(roomId, socketUrl);
+      connect(message.roomId, message.socketUrl);
       sendResponse({ ok: true });
       return false;
     }
@@ -3475,23 +3494,139 @@ chrome.runtime.onMessage.addListener(
       sendResponse({ ok: true });
       return false;
     }
+    if (message.type === "SNIP_CAPTURED") {
+      sendResponse(emitCrop(message));
+      return false;
+    }
     return false;
   }
 );
-chrome.commands.onCommand.addListener((command) => {
+chrome.commands.onCommand.addListener((command, tab) => {
   if (command !== "capture") return;
+  void handleCapture(tab);
+});
+function emitCrop(message) {
   if (state.status !== "connected" || !socket?.connected) {
-    console.log("[Snipio] Alt+S \u2014 not connected to a room. Open the popup and join first.");
+    return { ok: false, error: "Join a room first" };
+  }
+  if (message.mime !== "image/png" && message.mime !== "image/jpeg") {
+    return { ok: false, error: "Couldn't send that image" };
+  }
+  if (!message.bytes || message.bytes.length > MAX_SLIDE_B64_CHARS) {
+    return { ok: false, error: "Selection is too large \u2014 try a smaller region" };
+  }
+  socket.emit("slide:captured", {
+    id: crypto.randomUUID(),
+    mime: message.mime,
+    bytes: message.bytes,
+    createdAt: Date.now()
+  });
+  return { ok: true };
+}
+async function handleCapture(tabFromCommand) {
+  await booted;
+  if (state.status === "connecting") {
+    await waitForSocket(2500);
+  }
+  const tab = await resolveTab(tabFromCommand);
+  if (state.status !== "connected" || !socket?.connected) {
+    await toastOnTab(tab, "Join a room first", "info");
     return;
   }
-  console.log(`[Snipio] Alt+S \u2014 capture queued for room ${state.roomId}`);
-});
-chrome.runtime.onStartup.addListener(() => {
-  chrome.storage.local.get(["extState", "socketUrl"], (result) => {
-    const saved = result.extState;
-    const socketUrl = result.socketUrl ?? "http://localhost:3001";
-    if (saved?.status === "connected" && saved.roomId) {
-      connect(saved.roomId, socketUrl);
-    }
+  if (!tab?.id || tab.windowId == null) return;
+  if (isRestrictedUrl(tab.url)) {
+    await toastOnTab(tab, "Can't snip this page \u2014 open a lecture tab", "error");
+    return;
+  }
+  const injected = await ensureContentScript(tab.id);
+  if (!injected) {
+    console.warn("[Snipio] Refresh this page, then press Alt+S again.");
+    return;
+  }
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "SNIP_HIDE" });
+  } catch {
+  }
+  await pause(48);
+  const generation = ++snipGeneration;
+  let dataUrl;
+  try {
+    dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+  } catch (err) {
+    console.warn("[Snipio] captureVisibleTab failed:", err);
+    await toastOnTab(tab, "Couldn't capture this tab", "error");
+    return;
+  }
+  if (generation !== snipGeneration) return;
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "SNIP_START",
+      dataUrl
+    });
+  } catch {
+    await toastOnTab(tab, "Refresh this page, then press Alt+S again", "error");
+  }
+}
+async function ensureContentScript(tabId) {
+  if (await pingTab(tabId)) return true;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"]
+    });
+  } catch {
+    return false;
+  }
+  return pingTab(tabId);
+}
+async function pingTab(tabId) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: "SNIP_PING"
+    });
+    return Boolean(response?.ok);
+  } catch {
+    return false;
+  }
+}
+async function toastOnTab(tab, text, kind) {
+  if (!tab?.id) return;
+  if (!await ensureContentScript(tab.id)) return;
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      type: "SNIP_TOAST",
+      kind,
+      text
+    });
+  } catch {
+  }
+}
+async function resolveTab(tab) {
+  if (tab?.id) return tab;
+  const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return active;
+}
+function isRestrictedUrl(url2) {
+  if (!url2) return false;
+  return /^(chrome|chrome-extension|edge|about|devtools|chrome-untrusted):/i.test(url2);
+}
+function pause(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function waitForSocket(ms) {
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (state.status === "connected" && socket?.connected) {
+        resolve(true);
+        return;
+      }
+      if (state.status === "error" || state.status === "idle" || Date.now() - started >= ms) {
+        resolve(false);
+        return;
+      }
+      setTimeout(tick, 50);
+    };
+    tick();
   });
-});
+}
