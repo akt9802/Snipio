@@ -6,6 +6,7 @@ import Features from "@/components/landing/Features";
 import Footer from "@/components/layout/Footer";
 import Reveal from "@/components/layout/Reveal";
 import CreateRoomButton from "@/components/landing/CreateRoomButton";
+import InstallAppButton from "@/components/layout/InstallAppButton";
 
 const slides = [
   {
@@ -134,7 +135,7 @@ export default function HomePage() {
                   is already waiting on your tablet.
                 </p>
 
-                <div className="anim-fade-up delay-3 flex flex-wrap items-center gap-2.5">
+                <div className="anim-fade-up delay-3 flex flex-wrap items-center gap-2.5 mb-8">
                   {[
                     { label: "No account needed" },
                     { label: "Zero install on tablet" },
@@ -156,6 +157,10 @@ export default function HomePage() {
                       {label}
                     </span>
                   ))}
+                </div>
+
+                <div className="anim-fade-up delay-4">
+                  <InstallAppButton variant="hero" />
                 </div>
               </div>
 
@@ -304,6 +309,7 @@ export default function HomePage() {
                 Create a room. Scan with tablet. Start lecture.
               </p>
             </div>
+            <div className="relative flex flex-wrap items-center gap-3">
             <CreateRoomButton
               id="cta-create-room-btn"
               className="btn-primary relative flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold cursor-pointer"
@@ -322,6 +328,8 @@ export default function HomePage() {
                 <polyline points="12 5 19 12 12 19" />
               </svg>
             </CreateRoomButton>
+            <InstallAppButton variant="nav" />
+            </div>
           </div>
           </Reveal>
         </section>

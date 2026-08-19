@@ -432,25 +432,47 @@ extension/
 
 ---
 
-## Step 13 — PWA for the tablet `[next]`
+## Step 13 — PWA for the tablet `[done]`
 
 **Goal:** “Add to Home Screen” so the receiver feels like an app in split-screen.
 
-**What to build**
+**What was built**
 
-1. `manifest.webmanifest` (name, icons, `display: standalone`, theme color).
-2. Icons from the existing bolt mark.
-3. Service worker: **offline shell only**. Do not cache lecture images as a product feature.
-4. Optional “Install” hint on the tablet feed the first time.
+- Web app manifest (`src/app/manifest.ts`): name Snipio, `display: standalone`, theme `#e8642a`, start URL `/`.
+- Icons from the existing bolt mark: SVG favicon, Apple touch PNG (180), PWA PNGs at `/icons/192`, `/icons/512`, and a maskable 512.
+- Service worker (`public/sw.js`): **offline shell only** — precaches `/offline`, network-first navigations, never caches images, `/_next`, `/api`, or Socket.io. Lecture slides stay in-memory blob URLs.
+- Optional **Download as app** on the landing page (header, hero, and bottom CTA) plus an install hint on the tablet feed. Chrome / Samsung can prompt natively; otherwise the button explains Add to Home Screen. Hidden only when already running as an installed app.
+- `theme-color`, `apple-web-app-capable`, and `viewport-fit=cover` so the installed app matches the warm off-white shell.
+
+**Files**
+
+- `src/app/manifest.ts`
+- `src/app/icon.svg`
+- `src/app/apple-icon.tsx`
+- `src/app/icons/[size]/route.tsx`
+- `src/lib/appIcon.tsx`
+- `public/sw.js`
+- `src/app/offline/page.tsx`
+- `src/components/layout/ServiceWorkerRegister.tsx`
+- `src/components/layout/InstallAppButton.tsx`
+- `src/components/layout/Navbar.tsx`
+- `src/app/page.tsx`
+- `src/components/room/InstallHint.tsx`
+- `src/lib/pwa.ts`
+- `src/app/layout.tsx`
+- `src/components/room/TabletFeed.tsx`
+- `next.config.ts` (`/sw.js` headers)
 
 **Done when**
 
-- [ ] Chrome / Samsung Internet can install Snipio
-- [ ] Installed PWA still joins rooms and receives slides
+- [x] Chrome / Samsung Internet can install Snipio
+- [x] Installed PWA still joins rooms and receives slides
+
+**Do not do in this step:** room UI polish (Step 14). On HTTP LAN IPs some browsers skip install / service workers — localhost and HTTPS are the install targets.
 
 ---
 
-## Step 14 — Polish the real product UI
+## Step 14 — Polish the real product UI `[next]`
 
 **Goal:** Host and tablet screens should match the landing quality (tokens, type, motion) — not a default form.
 
@@ -516,8 +538,8 @@ Only after the loop above is reliable:
 | 10 | Copy / drag / auto-save | done |
 | 11 | Folder watcher | done |
 | 12 | Expiry & reconnect | done |
-| 13 | PWA | next |
-| 14 | Room UI polish | todo |
+| 13 | PWA | done |
+| 14 | Room UI polish | next |
 | 15 | Deploy + real-device test | todo |
 
 ---
@@ -531,5 +553,6 @@ Only after the loop above is reliable:
 5. Tablet: copy → paste into Notes **or** drag card into Notes **or** auto-save and open Gallery.
 6. Optional: watch screenshot folder → an OS **Cmd+Shift+4 / Win+Shift+S** file also appears on the tablet.
 7. Optional: host **Leave room** → tablet shows “The host left. This room is closed.”
+8. Optional: tablet **Add to Home Screen** / Install → reopen the PWA, join the same room, receive a slide.
 
-If the first six pass, the MVP loop works. Step 12 is the lifecycle around that loop.
+If the first six pass, the MVP loop works. Step 12 is the lifecycle around that loop. Step 13 is the tablet install shell.

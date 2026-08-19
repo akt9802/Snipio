@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AutoSaveToggle from "@/components/room/AutoSaveToggle";
+import InstallHint from "@/components/room/InstallHint";
 import RoomStatePanel from "@/components/room/RoomStatePanel";
 import SlideCard from "@/components/room/SlideCard";
 import { BoltIcon } from "@/components/layout/icons";
@@ -192,6 +193,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
       </header>
 
       <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5">
+        <InstallHint />
         {roomMissing ? (
           <RoomStatePanel
             title={

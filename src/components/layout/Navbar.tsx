@@ -1,4 +1,5 @@
 import { BoltIcon } from "@/components/layout/icons";
+import InstallAppButton from "@/components/layout/InstallAppButton";
 
 export default function Navbar() {
   return (
@@ -58,13 +59,16 @@ export default function Navbar() {
             </a>
           </nav>
 
-          <a
-            href="#"
-            className="nav-cta flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl border"
-          >
-            <span className="w-2 h-2 rounded-full dot-pulse" style={{ background: "var(--success)" }} />
-            Get extension
-          </a>
+          <div className="flex items-center gap-2">
+            <InstallAppButton variant="nav" />
+            <a
+              href="#"
+              className="nav-cta hidden sm:flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl border"
+            >
+              <span className="w-2 h-2 rounded-full dot-pulse" style={{ background: "var(--success)" }} />
+              Get extension
+            </a>
+          </div>
         </div>
       </header>
     </>

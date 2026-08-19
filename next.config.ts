@@ -16,6 +16,17 @@ function lanDevOrigins() {
 const nextConfig: NextConfig = {
   // Let the tablet load /_next assets when opening the LAN URL in dev.
   allowedDevOrigins: lanDevOrigins(),
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
