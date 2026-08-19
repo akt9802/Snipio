@@ -472,26 +472,38 @@ extension/
 
 ---
 
-## Step 14 — Polish the real product UI `[next]`
+## Step 14 — Polish the real product UI `[done]`
 
 **Goal:** Host and tablet screens should match the landing quality (tokens, type, motion) — not a default form.
 
-**What to build**
+**What was built**
 
-1. Reuse `globals.css` tokens on room pages.
-2. Host: QR prominent, status readable from across a desk.
-3. Tablet: cards like the landing demo strip, newest first, timestamps.
-4. Loading / receiving shimmer (you already have a “receiving…” pattern on the home page — reuse it).
-5. Accessibility: focus states, tap targets ≥ 44px, don’t rely on color alone for “connected”.
+- Room pages reuse landing tokens: `.room-card`, `.room-slide`, `.btn-secondary`, receiving shimmer, safe-area padding.
+- **Host:** desk-sized status (word + color: Live / Wait / Alert), 28px room code, larger padded QR, 44px Copy / Leave / folder actions. Sending uses the same “receiving…” tile as the home demo strip.
+- **Tablet:** cards match the landing demo strip (rounded tile, timestamp, newest first with a **New** badge and receive glow). Empty/connecting shows the receiving shimmer. Status pill includes a text label, not color alone. Header/footer respect notch safe-areas for split-view / PWA.
+- Focus rings stay the global accent outline; tap targets are ≥ 44px on Copy, Auto-save, install, leave, and folder buttons.
+
+**Files**
+
+- `src/app/globals.css`
+- `src/components/room/StatusBadge.tsx`
+- `src/components/room/ReceivingTile.tsx`
+- `src/components/room/HostDashboard.tsx`
+- `src/components/room/JoinQr.tsx`
+- `src/components/room/TabletFeed.tsx`
+- `src/components/room/SlideCard.tsx`
+- `src/components/room/FolderWatch.tsx`
 
 **Done when**
 
-- [ ] Room pages look like the same product as the home page
-- [ ] Usable one-handed on a tablet in split view
+- [x] Room pages look like the same product as the home page
+- [x] Usable one-handed on a tablet in split view
+
+**Do not do in this step:** production deploy (Step 15).
 
 ---
 
-## Step 15 — Deploy and local-network testing
+## Step 15 — Deploy and local-network testing `[next]`
 
 **Goal:** Laptop and tablet on the same Wi‑Fi can use a deployed (or tunneled) URL.
 
@@ -539,8 +551,8 @@ Only after the loop above is reliable:
 | 11 | Folder watcher | done |
 | 12 | Expiry & reconnect | done |
 | 13 | PWA | done |
-| 14 | Room UI polish | next |
-| 15 | Deploy + real-device test | todo |
+| 14 | Room UI polish | done |
+| 15 | Deploy + real-device test | next |
 
 ---
 
@@ -555,4 +567,4 @@ Only after the loop above is reliable:
 7. Optional: host **Leave room** → tablet shows “The host left. This room is closed.”
 8. Optional: tablet **Add to Home Screen** / Install → reopen the PWA, join the same room, receive a slide.
 
-If the first six pass, the MVP loop works. Step 12 is the lifecycle around that loop. Step 13 is the tablet install shell.
+If the first six pass, the MVP loop works. Step 12 is the lifecycle around that loop. Step 13 is the tablet install shell. Step 14 is host/tablet visual polish.

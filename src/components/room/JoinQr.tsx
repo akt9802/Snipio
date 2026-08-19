@@ -14,7 +14,6 @@ export default function JoinQr({ roomId, valid, compact = false }: Props) {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const size = compact ? 148 : 220;
 
   useEffect(() => {
     if (!valid) return;
@@ -26,7 +25,7 @@ export default function JoinQr({ roomId, valid, compact = false }: Props) {
         const origin = await resolveJoinOrigin();
         const url = tabletJoinUrl(origin, roomId);
         const qr = await QRCode.toDataURL(url, {
-          width: compact ? 196 : 280,
+          width: compact ? 220 : 280,
           margin: 1,
           color: { dark: "#1a1714", light: "#ffffff" },
         });
@@ -67,17 +66,23 @@ export default function JoinQr({ roomId, valid, compact = false }: Props) {
   return (
     <div className="flex flex-col items-center text-center gap-2.5">
       <div
-        role="img"
-        aria-label={`QR code to join room ${roomId}`}
-        className="rounded-xl"
+        className="rounded-2xl p-3 w-full max-w-[252px]"
         style={{
-          width: size,
-          height: size,
-          background: `#fff url(${dataUrl}) center / contain no-repeat`,
+          background: "#fff",
           border: "1px solid var(--bg-border)",
+          boxShadow: "var(--shadow-sm)",
         }}
-      />
-      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+      >
+        <div
+          role="img"
+          aria-label={`QR code to join room ${roomId}`}
+          className="rounded-xl w-full aspect-square"
+          style={{
+            background: `#fff url(${dataUrl}) center / contain no-repeat`,
+          }}
+        />
+      </div>
+      <p className={compact ? "text-sm font-semibold" : "text-base font-semibold"} style={{ color: "var(--text-primary)" }}>
         Scan with the tablet camera
       </p>
       {loopback ? (
@@ -105,26 +110,17 @@ function QrFrame({
   return (
     <div
       className="flex flex-col items-center justify-center gap-3 text-center px-2"
-      style={{ minHeight: compact ? 148 : 220 }}
+      style={{ minHeight: compact ? 168 : 228 }}
     >
       <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center"
+        className={`rounded-xl ${pulse ? "anim-receive-fill" : ""}`}
         style={{
-          background: "var(--bg-surface)",
+          width: compact ? 72 : 96,
+          height: compact ? 72 : 96,
+          background: pulse ? undefined : "var(--bg-surface)",
           border: "1px solid var(--bg-border)",
         }}
-      >
-        <span
-          className={pulse ? "dot-pulse" : ""}
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            background: "var(--text-muted)",
-            display: "inline-block",
-          }}
-        />
-      </div>
+      />
       <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
         {message}
       </p>

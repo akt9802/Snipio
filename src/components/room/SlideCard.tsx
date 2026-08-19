@@ -12,9 +12,10 @@ export type SlideCardProps = {
   src: string;
   mime: string;
   blob: Blob;
+  newest?: boolean;
 };
 
-export default function SlideCard({ name, time, src, mime, blob }: SlideCardProps) {
+export default function SlideCard({ name, time, src, mime, blob, newest = false }: SlideCardProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -72,12 +73,7 @@ export default function SlideCard({ name, time, src, mime, blob }: SlideCardProp
   return (
     <>
       <article
-        className="overflow-hidden rounded-xl"
-        style={{
-          background: "var(--bg-elevated)",
-          border: "1px solid var(--bg-border)",
-          boxShadow: "var(--shadow-sm)",
-        }}
+        className={`room-slide ${newest ? "is-newest anim-receive anim-fade-up" : ""}`}
       >
         <div
           draggable
@@ -98,8 +94,20 @@ export default function SlideCard({ name, time, src, mime, blob }: SlideCardProp
           role="button"
           tabIndex={0}
           aria-label={`View ${name} full screen`}
-          className="relative bg-[var(--bg-surface)] cursor-zoom-in"
+          className="relative cursor-zoom-in"
+          style={{ background: newest ? "rgba(232,100,42,0.06)" : "var(--bg-surface)" }}
         >
+          {newest ? (
+            <span
+              className="absolute top-2 left-2 z-10 text-[10px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-full"
+              style={{
+                background: "var(--accent)",
+                color: "#fff",
+              }}
+            >
+              New
+            </span>
+          ) : null}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
@@ -113,9 +121,14 @@ export default function SlideCard({ name, time, src, mime, blob }: SlideCardProp
           <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
             {name}
           </p>
-          <p className="text-[11px] mt-0.5 code-font" style={{ color: "var(--text-muted)" }}>
-            {time}
-            <span className="ml-2 font-sans tracking-normal">Drag into Notes</span>
+          <p
+            className="text-[11px] mt-0.5 code-font"
+            style={{ color: newest ? "var(--accent)" : "var(--text-muted)" }}
+          >
+            {newest ? `Just now · ${time}` : time}
+            <span className="ml-2 font-sans tracking-normal" style={{ color: "var(--text-muted)" }}>
+              Drag into Notes
+            </span>
           </p>
 
           <div className="flex gap-2 mt-3">

@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AutoSaveToggle from "@/components/room/AutoSaveToggle";
 import InstallHint from "@/components/room/InstallHint";
+import ReceivingTile from "@/components/room/ReceivingTile";
 import RoomStatePanel from "@/components/room/RoomStatePanel";
 import SlideCard from "@/components/room/SlideCard";
+import StatusBadge from "@/components/room/StatusBadge";
 import { BoltIcon } from "@/components/layout/icons";
 import { cueSlideReceived, downloadSlide, readAutoSave, writeAutoSave } from "@/lib/autoSave";
 import { useRoomSession } from "@/lib/useRoomSession";
@@ -98,34 +100,34 @@ export default function TabletFeed({ roomId, valid }: Props) {
   const reconnecting = valid && !roomMissing && !roomFull && (status === "disconnected" || serverDown);
   const inRoom = valid && status === "connected" && Boolean(presence) && !error && !serverDown;
 
-  let statusLabel = "Connecting";
-  let statusColor = "var(--accent)";
+  let statusTitle = "Connecting";
+  let statusTone: "wait" | "ok" | "error" = "wait";
   let pulse = true;
 
   if (roomMissing) {
-    statusLabel =
+    statusTitle =
       error?.code === "expired" ? "Room ended" : error?.code === "closed" ? "Room closed" : "Room not found";
-    statusColor = "var(--error)";
+    statusTone = "error";
     pulse = false;
   } else if (roomFull) {
-    statusLabel = "Room full";
-    statusColor = "var(--error)";
+    statusTitle = "Room full";
+    statusTone = "error";
     pulse = false;
   } else if (serverDown) {
-    statusLabel = "Reconnecting";
-    statusColor = "var(--error)";
+    statusTitle = "Reconnecting";
+    statusTone = "error";
     pulse = true;
   } else if (reconnecting) {
-    statusLabel = "Reconnecting";
-    statusColor = "var(--accent)";
+    statusTitle = "Reconnecting";
+    statusTone = "wait";
     pulse = true;
   } else if (error) {
-    statusLabel = "Error";
-    statusColor = "var(--error)";
+    statusTitle = "Error";
+    statusTone = "error";
     pulse = false;
   } else if (inRoom) {
-    statusLabel = "Connected";
-    statusColor = "var(--success)";
+    statusTitle = "Connected";
+    statusTone = "ok";
     pulse = false;
   }
 
@@ -135,7 +137,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
       style={{ background: "var(--bg-base)" }}
     >
       <header
-        className="sticky top-0 z-50"
+        className="sticky top-0 z-50 safe-pad-top"
         style={{
           background: "rgba(250,249,247,0.94)",
           borderBottom: "1px solid var(--bg-border)",
@@ -156,25 +158,8 @@ export default function TabletFeed({ roomId, valid }: Props) {
               </span>
             </Link>
 
-            <span
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium px-2.5 min-h-8 rounded-full"
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--bg-border)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <span
-                className={pulse ? "dot-pulse" : ""}
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 999,
-                  background: statusColor,
-                  display: "inline-block",
-                }}
-              />
-              {statusLabel}
+            <span className="ml-auto">
+              <StatusBadge title={statusTitle} tone={statusTone} pulse={pulse} />
             </span>
           </div>
 
@@ -192,7 +177,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5">
+      <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5 safe-pad-bottom">
         <InstallHint />
         {roomMissing ? (
           <RoomStatePanel
@@ -253,7 +238,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
             ) : null}
             <ul className="flex flex-col gap-3">
               {slides.map((slide, index) => (
-                <li key={slide.id} className={index === 0 ? "anim-fade-up" : undefined}>
+                <li key={slide.id}>
                   <SlideCard
                     id={slide.id}
                     name={slideFileName(slide.mime, slide.createdAt)}
@@ -261,6 +246,7 @@ export default function TabletFeed({ roomId, valid }: Props) {
                     src={slide.objectUrl}
                     mime={slide.mime}
                     blob={slide.blob}
+                    newest={index === 0}
                   />
                 </li>
               ))}
@@ -274,27 +260,30 @@ export default function TabletFeed({ roomId, valid }: Props) {
 
 function EmptyFeed({ connecting, autoSave }: { connecting: boolean; autoSave: boolean }) {
   return (
-    <div
-      className="rounded-2xl px-5 py-14 text-center"
-      style={{
-        background: "var(--bg-elevated)",
-        border: "1px dashed var(--bg-border)",
-        boxShadow: "var(--shadow-sm)",
-      }}
-    >
-      <p className="text-base font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
-        Waiting for slides.
-      </p>
-      <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        Drop or paste on the laptop, or press Alt+S and drag a region.
-      </p>
-      <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
-        {connecting
-          ? "Connecting to the room…"
-          : autoSave
-            ? "Auto-save is on — new slides download to this device."
-            : "Copy, drag into Notes, or turn on Auto-save."}
-      </p>
+    <div className="flex flex-col gap-3">
+      {connecting ? <ReceivingTile label="connecting…" /> : <ReceivingTile />}
+      <div
+        className="rounded-2xl px-5 py-10 text-center"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px dashed var(--bg-border)",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <p className="text-base font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+          Waiting for slides.
+        </p>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          Drop or paste on the laptop, or press Alt+S and drag a region.
+        </p>
+        <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
+          {connecting
+            ? "Connecting to the room…"
+            : autoSave
+              ? "Auto-save is on — new slides download to this device."
+              : "Copy, drag into Notes, or turn on Auto-save."}
+        </p>
+      </div>
     </div>
   );
 }

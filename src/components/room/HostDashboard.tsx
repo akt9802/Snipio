@@ -14,7 +14,9 @@ import {
 } from "@/components/layout/icons";
 import FolderWatch from "@/components/room/FolderWatch";
 import JoinQr from "@/components/room/JoinQr";
+import ReceivingTile from "@/components/room/ReceivingTile";
 import RoomStatePanel from "@/components/room/RoomStatePanel";
+import StatusBadge from "@/components/room/StatusBadge";
 import { useRoomSession } from "@/lib/useRoomSession";
 import {
   isEndedRoomError,
@@ -155,8 +157,6 @@ export default function HostDashboard({ roomId, valid }: Props) {
     statusDetail = "Claiming this room";
   }
 
-  const statusDot =
-    statusTone === "ok" ? "var(--success)" : statusTone === "error" ? "var(--error)" : "var(--accent)";
   const statusPulse = statusTone === "wait" && (status === "connecting" || reconnecting);
 
   async function copyCode() {
@@ -187,36 +187,16 @@ export default function HostDashboard({ roomId, valid }: Props) {
           </p>
         </div>
       ) : null}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
         <aside className="anim-fade-up lg:sticky lg:top-24">
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--bg-border)",
-              boxShadow: "var(--shadow-md)",
-            }}
-          >
-            <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid var(--bg-border)" }}>
-              <span
-                className={statusPulse ? "dot-pulse" : ""}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  background: statusDot,
-                  flexShrink: 0,
-                }}
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                  {statusTitle}
-                </p>
-                <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                  {statusDetail}
-                </p>
-              </div>
-            </div>
+          <div className="room-card overflow-hidden" style={{ boxShadow: "var(--shadow-md)" }}>
+            <StatusBadge
+              size="desk"
+              title={statusTitle}
+              detail={statusDetail}
+              tone={statusTone}
+              pulse={statusPulse}
+            />
 
             <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--bg-border)" }}>
               <p
@@ -227,7 +207,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
               </p>
               <div className="flex items-center gap-2">
                 <p
-                  className="code-font text-[22px] font-bold tracking-[0.14em] leading-none truncate"
+                  className="code-font text-[28px] font-bold tracking-[0.12em] leading-none truncate"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {roomId}
@@ -235,11 +215,11 @@ export default function HostDashboard({ roomId, valid }: Props) {
                 <button
                   type="button"
                   onClick={copyCode}
-                  className="ml-auto inline-flex items-center justify-center gap-1.5 h-9 px-3 text-xs font-medium rounded-lg border cursor-pointer flex-shrink-0"
+                  className="btn-secondary ml-auto inline-flex items-center justify-center gap-1.5 min-w-11 px-3 flex-shrink-0"
                   style={{
-                    color: copied ? "var(--success)" : "var(--text-secondary)",
-                    borderColor: copied ? "rgba(39, 160, 90, 0.35)" : "var(--bg-border)",
-                    background: copied ? "var(--success-soft)" : "var(--bg-surface)",
+                    color: copied ? "var(--success)" : undefined,
+                    borderColor: copied ? "rgba(39, 160, 90, 0.35)" : undefined,
+                    background: copied ? "var(--success-soft)" : undefined,
                   }}
                 >
                   {copied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
@@ -255,7 +235,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
               >
                 Pair tablet
               </p>
-              <JoinQr roomId={roomId} valid={valid} compact />
+              <JoinQr roomId={roomId} valid={valid} />
             </div>
 
             <div className="px-5 py-4">
@@ -288,7 +268,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
                 type="button"
                 onClick={onLeaveRoom}
                 disabled={leaving || status !== "connected" || !presence}
-                className="inline-flex items-center justify-center gap-2 min-h-10 rounded-xl text-sm font-medium cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-xl text-sm font-medium cursor-pointer disabled:opacity-50"
                 style={{
                   color: "var(--error)",
                   background: "rgba(220, 53, 69, 0.06)",
@@ -305,12 +285,7 @@ export default function HostDashboard({ roomId, valid }: Props) {
               </p>
               <Link
                 href="/"
-                className="flex items-center justify-center min-h-10 rounded-xl text-sm font-medium"
-                style={{
-                  color: "var(--text-secondary)",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--bg-border)",
-                }}
+                className="btn-secondary flex items-center justify-center"
               >
                 Back home
               </Link>
@@ -555,9 +530,9 @@ function HostDropzone({
         />
 
         <div
-          className="px-6 py-14 md:px-8 md:py-16 text-center cursor-text"
+          className={`px-6 py-14 md:px-8 md:py-16 text-center cursor-text ${sending ? "anim-receive-fill" : ""}`}
           style={{
-            background: dragging ? "var(--accent-softer)" : "transparent",
+            background: dragging ? "var(--accent-softer)" : sending ? undefined : "transparent",
             minHeight: 200,
             transition: "background 0.15s ease",
           }}
@@ -577,6 +552,11 @@ function HostDropzone({
           <p className="text-lg md:text-xl font-medium tracking-tight" style={{ color: promptColor }}>
             {prompt}
           </p>
+          {sending ? (
+            <p className="text-xs mt-3 code-font" style={{ color: "var(--accent)" }}>
+              receiving on tablet…
+            </p>
+          ) : null}
         </div>
 
         <div
@@ -589,7 +569,7 @@ function HostDropzone({
             aria-checked={sendOnPaste}
             aria-label="Send on paste"
             onClick={() => setSendOnPaste((value) => !value)}
-            className="inline-flex items-center gap-2.5 text-xs font-medium cursor-pointer"
+            className="inline-flex items-center gap-2.5 min-h-11 text-sm font-medium cursor-pointer"
             style={{ color: "var(--text-secondary)" }}
           >
             <span
@@ -627,12 +607,7 @@ function HostDropzone({
               openPicker();
             }}
             disabled={sending}
-            className="ml-auto inline-flex items-center justify-center gap-2 min-h-10 px-3.5 text-sm font-medium rounded-xl cursor-pointer disabled:opacity-50"
-            style={{
-              color: "var(--text-secondary)",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--bg-border)",
-            }}
+            className="btn-secondary ml-auto inline-flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <PaperclipIcon className="w-4 h-4" />
             Choose file
@@ -656,13 +631,20 @@ function HostDropzone({
             </p>
           </div>
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {sending ? (
+              <li>
+                <ReceivingTile compact />
+              </li>
+            ) : null}
             {sentSlides.map((slide, index) => (
               <li key={slide.id}>
-                <SentSlideThumb slide={slide} newest={index === 0} />
+                <SentSlideThumb slide={slide} newest={index === 0 && !sending} />
               </li>
             ))}
           </ul>
         </section>
+      ) : sending ? (
+        <ReceivingTile />
       ) : (
         <EmptyRoom />
       )}
@@ -706,11 +688,11 @@ function SentSlideThumb({ slide, newest }: { slide: Slide; newest: boolean }) {
 
   return (
     <article
-      className={newest ? "anim-fade-up overflow-hidden rounded-xl" : "overflow-hidden rounded-xl"}
+      className={`demo-slide overflow-hidden rounded-xl ${newest ? "anim-receive" : ""}`}
       style={{
         background: "var(--bg-elevated)",
-        border: newest ? "1px solid rgba(39, 160, 90, 0.28)" : "1px solid var(--bg-border)",
-        boxShadow: "var(--shadow-sm)",
+        border: newest ? "1px solid rgba(232, 100, 42, 0.35)" : "1px solid var(--bg-border)",
+        boxShadow: newest ? "var(--shadow-md)" : "var(--shadow-sm)",
       }}
     >
       <div
@@ -724,7 +706,7 @@ function SentSlideThumb({ slide, newest }: { slide: Slide; newest: boolean }) {
         <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
           {name}
         </p>
-        <p className="text-[10px] mt-0.5 code-font" style={{ color: newest ? "var(--success)" : "var(--text-muted)" }}>
+        <p className="text-[10px] mt-0.5 code-font" style={{ color: newest ? "var(--accent)" : "var(--text-muted)" }}>
           {newest ? `Just now · ${time}` : time}
         </p>
       </div>
@@ -748,7 +730,7 @@ function DeviceRow({ device }: { device: RoomDevice }) {
           {label}
         </p>
         <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
-          {hint}
+          {hint} · live
         </p>
       </div>
     </li>

@@ -196,7 +196,7 @@ export default function FolderWatch({ canSend, ingestFiles }: Props) {
           type="button"
           onClick={() => void startWatching()}
           disabled={state.kind === "unsupported"}
-          className="inline-flex items-center justify-center min-h-10 px-3.5 text-sm font-medium rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center min-h-11 px-3.5 text-sm font-medium rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: watching ? "var(--bg-surface)" : "var(--accent)",
             color: watching ? "var(--text-secondary)" : "#fff",
@@ -209,7 +209,7 @@ export default function FolderWatch({ canSend, ingestFiles }: Props) {
           <button
             type="button"
             onClick={onStop}
-            className="inline-flex items-center justify-center min-h-10 px-3.5 text-sm font-medium rounded-xl cursor-pointer"
+            className="inline-flex items-center justify-center min-h-11 px-3.5 text-sm font-medium rounded-xl cursor-pointer"
             style={{
               background: "var(--bg-surface)",
               color: "var(--text-secondary)",
