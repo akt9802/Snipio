@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ─── Stage 1: Install dependencies ───────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -8,11 +8,14 @@ RUN apk add --no-cache libc6-compat
 
 COPY package.json package-lock.json ./
 
+# npm ci fails on Alpine: this lockfile was generated on macOS/npm 11 and
+# is missing linux/wasm nested optional packages (@emnapi/core, @emnapi/runtime).
+# npm install on the builder OS completes the tree.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm install --no-audit --no-fund
 
 # ─── Stage 2: Build Next.js + bundle the Socket.IO server ────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -35,11 +38,11 @@ RUN --mount=type=cache,target=/app/.next/cache \
 RUN npx esbuild server/socketServer.ts \
     --bundle \
     --platform=node \
-    --target=node20 \
+    --target=node22 \
     --outfile=dist/socketServer.js
 
 # ─── Stage 3: Minimal production image ────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
