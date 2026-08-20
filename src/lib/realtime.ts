@@ -39,35 +39,43 @@ function envSocketUrl() {
 }
 
 /**
- * Talk to the room server on the same hostname as the page, port 3001.
+ * Resolve the Socket.IO origin.
+ *
+ * Production (HTTPS behind Nginx): same origin — Nginx proxies `/socket.io/`
+ * to the socket process. Never append :3001 on https (mixed content + closed port).
+ *
+ * Local / LAN: talk to the same hostname on SOCKET_PORT (default 3001).
  * Never use localhost when the page was opened via a LAN IP — that would
  * be the tablet itself, not the laptop.
  */
 export function getSocketUrl(): string {
   const fromEnv = envSocketUrl();
 
-  if (typeof window !== "undefined") {
-    if (fromEnv) {
-      try {
-        if (!isLoopbackHost(new URL(fromEnv).hostname)) return fromEnv;
-      } catch {
-        return fromEnv;
-      }
-    }
-
-    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-    let port = "3001";
-    if (fromEnv) {
-      try {
-        port = new URL(fromEnv).port || "3001";
-      } catch {
-        port = "3001";
-      }
-    }
-    return `${protocol}//${window.location.hostname}:${port}`;
+  if (typeof window === "undefined") {
+    return fromEnv || "http://localhost:3001";
   }
 
-  return fromEnv || "http://localhost:3001";
+  if (fromEnv) {
+    try {
+      if (!isLoopbackHost(new URL(fromEnv).hostname)) return fromEnv;
+    } catch {
+      return fromEnv;
+    }
+  }
+
+  if (window.location.protocol === "https:") {
+    return window.location.origin;
+  }
+
+  let port = "3001";
+  if (fromEnv) {
+    try {
+      port = new URL(fromEnv).port || "3001";
+    } catch {
+      port = "3001";
+    }
+  }
+  return `http://${window.location.hostname}:${port}`;
 }
 
 export function connect(): RealtimeSocket {

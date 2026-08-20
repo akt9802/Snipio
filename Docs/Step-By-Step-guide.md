@@ -8,7 +8,7 @@ Build the app in this order. Each step is a small, working slice. Do not skip ah
 Create room → Join on tablet → Connect extension → Alt+S → drag a region → that crop appears on tablet → Drag into notes
 ```
 
-Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solution.md) · [System Architecture](./System-Architecture.md)
+Related docs: [Problem Statement](./ProblemStatement.md) · [Solution](./Solution.md) · [System Architecture](./System-Architecture.md) · [Deployment Playbook](./Deployment.md)
 
 ---
 

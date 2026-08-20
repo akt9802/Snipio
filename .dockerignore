@@ -1,0 +1,38 @@
+# ── Dependencies (always re-installed inside container) ────────────────────────
+node_modules
+
+# ── Next.js / build output ─────────────────────────────────────────────────────
+.next
+.turbo
+out
+dist
+build
+
+# ── Browser extension (not served by the VM) ───────────────────────────────────
+extension
+
+# ── Git ────────────────────────────────────────────────────────────────────────
+.git
+.gitignore
+.github
+
+# ── Env files – NEVER bake secrets into the image ─────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Editor / OS ───────────────────────────────────────────────────────────────
+.DS_Store
+.vscode
+.idea
+*.pem
+*.log
+*.tsbuildinfo
+
+# ── Docs / local scripts ──────────────────────────────────────────────────────
+README*.md
+DEPLOYMENT*.md
+Docs
+AgentDocs
+CLAUDE.md
+AGENTS.md

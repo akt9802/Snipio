@@ -14,6 +14,7 @@ function lanDevOrigins() {
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // Let the tablet load /_next assets when opening the LAN URL in dev.
   allowedDevOrigins: lanDevOrigins(),
   async headers() {

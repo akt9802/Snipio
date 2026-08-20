@@ -224,9 +224,11 @@ Open [http://localhost:3000](http://localhost:3000) on your laptop, create a roo
 
 ## 📄 Documentation
 
-- 📘 [Problem Statement](file:///Users/amankumar/Personal-Work/Coding/Snipio/Docs/ProblemStatement.md)
-- 📗 [Solution Overview](file:///Users/amankumar/Personal-Work/Coding/Snipio/Docs/Solution.md)
-- 📙 [Deep System Architecture & Extension Analysis](file:///Users/amankumar/Personal-Work/Coding/Snipio/Docs/System-Architecture.md)
+- 📘 [Problem Statement](Docs/ProblemStatement.md)
+- 📗 [Solution Overview](Docs/Solution.md)
+- 📙 [Deep System Architecture & Extension Analysis](Docs/System-Architecture.md)
+- 🚀 [VM Deployment Playbook](Docs/Deployment.md) — how to deploy this app *or* another app on the same VM
+- 🔧 [Snipio deploy commands](DEPLOYMENT.md)
 
 ---
 
